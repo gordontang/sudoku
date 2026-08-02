@@ -1,0 +1,171 @@
+import XCTest
+
+/// End-to-end tests driving the real app on a fixed puzzle
+/// (see UITestSupport.fixedPuzzle: cell r1c1 is empty, its answer is 8).
+final class SudokuUITests: XCTestCase {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    private func launchApp(reset: Bool = true) -> XCUIApplication {
+        let app = XCUIApplication()
+        var args = ["-uitest-fixed-puzzle"]
+        if reset { args.append("-uitest-reset") }
+        app.launchArguments = args
+        app.launch()
+        return app
+    }
+
+    @discardableResult
+    private func startEasyGame(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons["Easy"].firstMatch.tap()
+        let cell = app.buttons["cell_0_0"]
+        XCTAssertTrue(cell.waitForExistence(timeout: 10), "Board should appear")
+        return cell
+    }
+
+    func testBoardAppears() {
+        let app = launchApp()
+        startEasyGame(app)
+        XCTAssertTrue(app.buttons["digit_1"].exists)
+        XCTAssertTrue(app.buttons["hint"].exists)
+        XCTAssertTrue(app.buttons["cell_8_8"].exists)
+    }
+
+    func testMistakeFlaggedThenCorrected() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        cell.tap()
+        app.buttons["digit_5"].tap() // wrong: answer is 8
+        XCTAssertTrue(cell.label.contains("incorrect"), "Wrong digit must be flagged, got: \(cell.label)")
+        app.buttons["digit_8"].tap() // correct it
+        XCTAssertFalse(cell.label.contains("incorrect"))
+        XCTAssertTrue(cell.label.contains("contains 8"))
+    }
+
+    func testPencilMarksAndUndo() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        cell.tap()
+        app.buttons["pencil"].tap()
+        app.buttons["digit_1"].tap()
+        XCTAssertTrue(cell.label.contains("notes 1"), "got: \(cell.label)")
+        app.buttons["digit_2"].tap()
+        XCTAssertTrue(cell.label.contains("notes 1, 2"), "got: \(cell.label)")
+        app.buttons["pencil"].tap() // pencil off
+        app.buttons["digit_8"].tap() // real value replaces notes
+        XCTAssertTrue(cell.label.contains("contains 8"))
+        app.buttons["undo"].tap() // back to notes 1,2
+        XCTAssertTrue(cell.label.contains("notes 1, 2"), "undo should restore notes, got: \(cell.label)")
+        app.buttons["undo"].tap() // back to notes 1
+        XCTAssertTrue(cell.label.contains("notes 1"))
+        app.buttons["undo"].tap() // back to empty
+        XCTAssertTrue(cell.label.contains("empty"))
+    }
+
+    func testEraseClearsCell() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        cell.tap()
+        app.buttons["digit_8"].tap()
+        XCTAssertTrue(cell.label.contains("contains 8"))
+        app.buttons["erase"].tap()
+        XCTAssertTrue(cell.label.contains("empty"))
+    }
+
+    func testCompletePuzzleViaHintsAndStatsRecorded() {
+        let app = launchApp()
+        startEasyGame(app)
+        // The fixture has 39 empty cells; each hint fills one correctly.
+        let done = app.buttons["victory_done"]
+        for _ in 0..<41 {
+            if done.exists { break }
+            app.buttons["hint"].tap()
+        }
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "Victory sheet should appear")
+        done.tap()
+        // Back on Home; the finished game must appear in Stats.
+        XCTAssertTrue(app.staticTexts["New Game"].waitForExistence(timeout: 5))
+        app.buttons["Statistics"].tap()
+        XCTAssertTrue(app.staticTexts["Puzzles solved"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Easy"].exists, "Easy section should exist in stats")
+    }
+
+    func testPauseResumeAndRestart() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        cell.tap()
+        app.buttons["digit_8"].tap()
+        XCTAssertTrue(cell.label.contains("contains 8"))
+
+        app.buttons["pause"].tap()
+        let resume = app.buttons["resume"]
+        XCTAssertTrue(resume.waitForExistence(timeout: 3), "Pause overlay should appear")
+        XCTAssertFalse(cell.label.contains("contains 8"), "Board must be hidden while paused, got: \(cell.label)")
+
+        resume.tap()
+        XCTAssertTrue(cell.label.contains("contains 8"), "Board should be restored on resume")
+
+        app.buttons["pause"].tap()
+        XCTAssertTrue(app.buttons["restart"].waitForExistence(timeout: 3))
+        app.buttons["restart"].tap()
+        XCTAssertTrue(cell.label.contains("empty"), "Restart should clear the board, got: \(cell.label)")
+    }
+
+    func testAutoCompleteAppearsAndFinishesPuzzle() {
+        let app = launchApp()
+        startEasyGame(app)
+        // Hint-fill until the endgame is forced; the button must appear before
+        // the last cell (a lone empty cell is always a naked single).
+        let autocomplete = app.buttons["autocomplete"]
+        let done = app.buttons["victory_done"]
+        for _ in 0..<38 {
+            if autocomplete.exists { break }
+            XCTAssertFalse(done.exists, "Puzzle finished before auto-complete ever appeared")
+            app.buttons["hint"].tap()
+        }
+        XCTAssertTrue(autocomplete.waitForExistence(timeout: 3), "Auto-complete should appear once the endgame is forced")
+        autocomplete.tap()
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "Auto-complete should finish the puzzle")
+    }
+
+    func testOnDemandMistakeMode() {
+        let app = launchApp()
+        // Switch mistake feedback to on-demand in Settings.
+        app.buttons["Settings"].tap()
+        // Inline picker rows surface as buttons or generic elements, not static texts.
+        let onDemand = app.descendants(matching: .any)["On demand"].firstMatch
+        XCTAssertTrue(onDemand.waitForExistence(timeout: 5))
+        onDemand.tap()
+        app.navigationBars.buttons.firstMatch.tap() // back to Home
+        let cell = startEasyGame(app)
+        cell.tap()
+        app.buttons["digit_5"].tap() // wrong, but must NOT be flagged live
+        XCTAssertFalse(cell.label.contains("incorrect"), "On-demand mode must not flag live, got: \(cell.label)")
+        let check = app.buttons["check"]
+        XCTAssertTrue(check.exists, "Check button should be visible in on-demand mode")
+        check.tap()
+        XCTAssertTrue(cell.label.contains("incorrect"), "Check should reveal the error, got: \(cell.label)")
+    }
+
+    func testSaveAndResumeAfterRelaunch() {
+        var app = launchApp()
+        let cell = startEasyGame(app)
+        cell.tap()
+        app.buttons["digit_8"].tap()
+        // Give autosave a beat, then kill the app.
+        Thread.sleep(forTimeInterval: 1)
+        app.terminate()
+
+        // Relaunch WITHOUT reset: the saved game must survive.
+        app = XCUIApplication()
+        app.launchArguments = []
+        app.launch()
+        let resume = app.staticTexts["Continue"]
+        XCTAssertTrue(resume.waitForExistence(timeout: 10), "Resume card should appear")
+        resume.tap()
+        let restored = app.buttons["cell_0_0"]
+        XCTAssertTrue(restored.waitForExistence(timeout: 10))
+        XCTAssertTrue(restored.label.contains("contains 8"), "Placed digit must survive relaunch, got: \(restored.label)")
+    }
+}
