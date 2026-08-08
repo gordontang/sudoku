@@ -208,6 +208,13 @@ final class GameViewModel {
 
         if pencilMode {
             guard values.cells[cell] == 0 else { return }
+            // Adding a note for a digit already in the row, column, or box is
+            // never valid — reject it. Removing an existing note stays allowed
+            // so stale marks can always be cleaned up.
+            if !pencil[cell].contains(digit: digit) && !values.candidateSet(at: cell).contains(digit: digit) {
+                Haptics.warning()
+                return
+            }
             undoStack.append(Move(valueChanges: [], pencilChanges: [(cell, pencil[cell])]))
             pencil[cell].toggle(digit: digit)
             Haptics.light()
