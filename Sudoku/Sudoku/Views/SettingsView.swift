@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.highlightPeers) private var highlightPeers = true
     @AppStorage(SettingsKeys.errorLimitEnabled) private var errorLimitEnabled = false
     @AppStorage(SettingsKeys.highlightSameDigits) private var highlightSameDigits = true
+    @AppStorage(SettingsKeys.highlightCoverage) private var highlightCoverage = true
     @AppStorage(SettingsKeys.showTimer) private var showTimer = true
     @AppStorage(SettingsKeys.showScore) private var showScore = true
     @AppStorage(SettingsKeys.soundEffects) private var soundEffects = true
@@ -51,12 +52,13 @@ struct SettingsView: View {
                 Toggle("Auto-clear pencil marks", isOn: $autoClearPencil)
                 Toggle("Highlight row, column & box", isOn: $highlightPeers)
                 Toggle("Highlight same numbers", isOn: $highlightSameDigits)
+                Toggle("Highlight covered rows & columns", isOn: $highlightCoverage)
                 Toggle("Apply auto-complete instantly", isOn: $autoApplyAutoComplete)
                 Toggle("Keep screen awake", isOn: $keepScreenOn)
             } header: {
                 Text("Gameplay")
             } footer: {
-                Text("Long-press a number on the pad to lock it, then tap cells to place it repeatedly. When auto-complete applies instantly, the endgame fills itself the moment it's all forced moves.")
+                Text("Long-press a number on the pad to lock it, then tap cells to place it repeatedly. When covered rows & columns are highlighted, selecting a number shades everywhere it can no longer go. When auto-complete applies instantly, the endgame fills itself the moment it's all forced moves.")
             }
 
             Section("Sound & Haptics") {

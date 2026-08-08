@@ -5,8 +5,11 @@ struct BoardView: View {
     @Bindable var vm: GameViewModel
     @AppStorage(SettingsKeys.highlightPeers) private var highlightPeers = true
     @AppStorage(SettingsKeys.highlightSameDigits) private var highlightSameDigits = true
+    @AppStorage(SettingsKeys.highlightCoverage) private var highlightCoverage = true
 
     var body: some View {
+        let digit = vm.isPaused ? 0 : activeDigit
+        let covered = coveredCells(by: digit)
         VStack(spacing: 0) {
             ForEach(0..<9, id: \.self) { row in
                 HStack(spacing: 0) {
@@ -18,7 +21,8 @@ struct BoardView: View {
                             value: vm.isPaused ? 0 : vm.values.cells[index],
                             isGiven: vm.givens.cells[index] != 0,
                             pencil: vm.isPaused ? CandidateSet() : vm.pencil[index],
-                            background: background(for: index),
+                            highlightDigit: highlightSameDigits ? digit : 0,
+                            background: background(for: index, activeDigit: digit, covered: covered),
                             isMistake: !vm.isPaused && vm.mistakes.contains(index),
                             isSelected: vm.selected == index
                         ) {
@@ -37,7 +41,31 @@ struct BoardView: View {
         .accessibilityLabel("Sudoku board")
     }
 
-    private func background(for index: Int) -> Color {
+    /// The digit the player is working with: the selected cell's value, or in
+    /// number-first mode the locked pad digit.
+    private var activeDigit: UInt8 {
+        if let selected = vm.selected, vm.values.cells[selected] != 0 {
+            return vm.values.cells[selected]
+        }
+        return vm.lockedDigit ?? 0
+    }
+
+    /// Every cell in a row or column already containing the digit — the places
+    /// it can no longer go.
+    private func coveredCells(by digit: UInt8) -> Set<Int> {
+        guard highlightCoverage, digit != 0 else { return [] }
+        var covered: Set<Int> = []
+        for i in 0..<81 where vm.values.cells[i] == digit {
+            let row = i / 9, col = i % 9
+            for k in 0..<9 {
+                covered.insert(row * 9 + k)
+                covered.insert(k * 9 + col)
+            }
+        }
+        return covered
+    }
+
+    private func background(for index: Int, activeDigit: UInt8, covered: Set<Int>) -> Color {
         guard !vm.isPaused else { return .clear }
         if vm.flashCells.contains(index) {
             return Theme.cellSameDigit
@@ -45,15 +73,21 @@ struct BoardView: View {
         if vm.mistakes.contains(index) {
             return Theme.cellMistake
         }
-        guard let selected = vm.selected else { return .clear }
-        if index == selected {
+        if index == vm.selected {
             return Theme.cellSelected
         }
-        let selectedDigit = vm.values.cells[selected]
-        if highlightSameDigits && selectedDigit != 0 && vm.values.cells[index] == selectedDigit {
-            return Theme.cellSameDigit
+        if highlightSameDigits && activeDigit != 0 {
+            if vm.values.cells[index] == activeDigit {
+                return Theme.cellSameDigit
+            }
+            if vm.values.cells[index] == 0 && vm.pencil[index].contains(digit: activeDigit) {
+                return Theme.cellSameDigit
+            }
         }
-        if highlightPeers && SudokuKit.Grid.peers[selected].contains(index) {
+        if let selected = vm.selected, highlightPeers, SudokuKit.Grid.peers[selected].contains(index) {
+            return Theme.cellPeer
+        }
+        if covered.contains(index) {
             return Theme.cellPeer
         }
         return .clear
@@ -65,6 +99,7 @@ private struct CellView: View {
     let value: UInt8
     let isGiven: Bool
     let pencil: CandidateSet
+    let highlightDigit: UInt8
     let background: Color
     let isMistake: Bool
     let isSelected: Bool
@@ -127,10 +162,11 @@ private struct CellView: View {
                 HStack(spacing: 0) {
                     ForEach(0..<3, id: \.self) { c in
                         let digit = UInt8(r * 3 + c + 1)
+                        let isHighlighted = digit == highlightDigit && pencil.contains(digit: digit)
                         Text(pencil.contains(digit: digit) ? "\(digit)" : " ")
-                            .font(.system(size: 9))
+                            .font(.system(size: 9, weight: isHighlighted ? .bold : .regular))
                             .minimumScaleFactor(0.5)
-                            .foregroundStyle(Theme.pencilText)
+                            .foregroundStyle(isHighlighted ? Theme.givenText : Theme.pencilText)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
