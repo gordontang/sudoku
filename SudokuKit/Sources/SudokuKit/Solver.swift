@@ -29,6 +29,24 @@ public enum Solver {
         return LogicalResult(solved: grid, techniques: used)
     }
 
+    /// Solve using naked and hidden singles only — the deductions a player
+    /// makes without pencil-mark bookkeeping. Returns the solved grid, or nil
+    /// when anything more sophisticated is required.
+    public static func solveWithSingles(_ start: Grid) -> Grid? {
+        var grid = start
+        var cands = grid.candidates()
+        while !grid.isFull {
+            guard let deduction = Techniques.nakedSingle(grid, cands) ?? Techniques.hiddenSingle(grid, cands) else {
+                return nil
+            }
+            apply(deduction, to: &grid, candidates: &cands)
+            for i in 0..<81 where grid.cells[i] == 0 && cands[i].isEmpty {
+                return nil
+            }
+        }
+        return grid
+    }
+
     /// Apply a deduction, keeping the candidate array in sync.
     public static func apply(_ deduction: Deduction, to grid: inout Grid, candidates: inout [CandidateSet]) {
         switch deduction.kind {

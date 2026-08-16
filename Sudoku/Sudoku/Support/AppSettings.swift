@@ -45,6 +45,7 @@ enum SettingsKeys {
     static let highlightPeers = "highlightPeers"
     static let errorLimitEnabled = "errorLimitEnabled"
     static let highlightSameDigits = "highlightSameDigits"
+    static let highlightCoverage = "highlightCoverage"
     static let showTimer = "showTimer"
     static let showScore = "showScore"
     static let soundEffects = "soundEffects"
@@ -78,6 +79,10 @@ enum AppSettings {
 
     static var highlightSameDigits: Bool {
         UserDefaults.standard.object(forKey: SettingsKeys.highlightSameDigits) as? Bool ?? true
+    }
+
+    static var highlightCoverage: Bool {
+        UserDefaults.standard.object(forKey: SettingsKeys.highlightCoverage) as? Bool ?? true
     }
 
     static var showTimer: Bool {

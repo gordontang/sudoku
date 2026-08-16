@@ -70,6 +70,23 @@ private let seventeenClue =
         }
     }
 
+    @Test func expertAndMasterAreDugDeep() {
+        // Expert and master must actually give fewer clues than hard (which
+        // floors at 30) and demand logic beyond pairs — the whole point of
+        // the deep-dig pass.
+        for (difficulty, cap) in [(Difficulty.expert, 25), (.master, 23)] {
+            var rng = SeededRNG(seed: 5)
+            for _ in 0..<3 {
+                let puzzle = Generator.generate(difficulty: difficulty, using: &rng)
+                #expect(
+                    puzzle.givens.clueCount <= cap,
+                    "\(difficulty) puzzle has \(puzzle.givens.clueCount) clues, expected ≤ \(cap)"
+                )
+                #expect(Rater.rate(puzzle.givens) >= .expert)
+            }
+        }
+    }
+
     @Test func generationSpeed() {
         let clock = ContinuousClock()
         for difficulty in Difficulty.allCases {
@@ -112,6 +129,20 @@ private let seventeenClue =
         // a stall rather than guess.
         let result = Solver.solveLogically(Grid())
         #expect(result.solved == nil)
+    }
+
+    @Test func solveWithSinglesSolvesEasy() {
+        var rng = SeededRNG(seed: 21)
+        let puzzle = Generator.generate(difficulty: .easy, using: &rng)
+        #expect(Solver.solveWithSingles(puzzle.givens) == puzzle.solution)
+    }
+
+    @Test func solveWithSinglesStallsWhenHarderLogicIsNeeded() {
+        // The 17-clue classic needs search; singles alone must stall, not guess.
+        let grid = Grid(string: seventeenClue)!
+        #expect(Solver.solveWithSingles(grid) == nil)
+        // An empty grid offers no single at all.
+        #expect(Solver.solveWithSingles(Grid()) == nil)
     }
 
     @Test func logicalSolutionMatchesSearch() {

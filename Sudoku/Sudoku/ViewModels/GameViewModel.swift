@@ -208,6 +208,13 @@ final class GameViewModel {
 
         if pencilMode {
             guard values.cells[cell] == 0 else { return }
+            // Adding a note for a digit already in the row, column, or box is
+            // never valid — reject it. Removing an existing note stays allowed
+            // so stale marks can always be cleaned up.
+            if !pencil[cell].contains(digit: digit) && !values.candidateSet(at: cell).contains(digit: digit) {
+                Haptics.warning()
+                return
+            }
             undoStack.append(Move(valueChanges: [], pencilChanges: [(cell, pencil[cell])]))
             pencil[cell].toggle(digit: digit)
             Haptics.light()
@@ -359,21 +366,28 @@ final class GameViewModel {
 
     // MARK: - Auto-complete
 
-    /// True when the rest of the puzzle is forced: every filled cell is
-    /// correct and every empty cell has exactly one legal candidate.
+    /// Auto-complete only appears in the endgame — without this cap an Easy
+    /// puzzle (singles-solvable from the first move) would offer it at start,
+    /// turning the button into "solve it for me".
+    static let autoCompleteMaxRemaining = 20
+
+    /// True when the endgame is routine: every filled cell is correct and the
+    /// rest falls to naked and hidden singles alone — a linear finish with no
+    /// advanced technique required.
     var canAutoComplete: Bool {
         guard !isGameOver else { return false }
-        var hasEmpty = false
+        var empty = 0
         for i in 0..<81 {
             if values.cells[i] == 0 {
-                hasEmpty = true
-                if values.candidateSet(at: i).count != 1 { return false }
+                empty += 1
             } else if givens.cells[i] == 0 && values.cells[i] != solution.cells[i] {
                 // A wrong entry can fake a "forced" cell — never offer.
                 return false
             }
         }
-        return hasEmpty
+        return empty > 0
+            && empty <= Self.autoCompleteMaxRemaining
+            && Solver.solveWithSingles(values) != nil
     }
 
     /// Fill all remaining forced cells in one undoable move.

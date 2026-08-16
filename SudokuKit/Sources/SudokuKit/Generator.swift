@@ -37,9 +37,14 @@ public enum Generator {
     /// Generate a puzzle of the requested difficulty.
     ///
     /// Fills a complete grid, digs symmetric holes while preserving uniqueness,
-    /// rates the result, and retries until the rating matches. Attempts are
-    /// capped; on exhaustion the closest-rated puzzle is returned so a request
-    /// can never hang.
+    /// rates the result, and retries until the puzzle qualifies. Attempts are
+    /// capped; on exhaustion the closest-qualifying puzzle is returned so a
+    /// request can never hang.
+    ///
+    /// Expert and master additionally dig asymmetrically past the symmetric
+    /// local minimum and are accepted on clue count as well as rating —
+    /// symmetric digging alone bottoms out near 25–30 clues, which is why
+    /// those levels used to feel like hard.
     public static func generate(difficulty: Difficulty, using rng: inout some RandomNumberGenerator) -> Puzzle {
         // Dig until the clue count reaches this floor (or no cell can be
         // removed without breaking uniqueness).
@@ -48,11 +53,18 @@ public enum Generator {
         case .easy: clueFloor = 42
         case .medium: clueFloor = 34
         case .hard: clueFloor = 30
-        case .expert: clueFloor = 26
-        case .master: clueFloor = 17
+        case .expert: clueFloor = 24
+        case .master: clueFloor = 20
         }
+        let deepDig = difficulty >= .expert
+        // Acceptance for deep-dug levels: few enough clues, and hard enough
+        // that the technique solver needs at least this band.
+        let maxClues = difficulty == .master ? 23 : 25
+        let minRating: Difficulty = difficulty == .master ? .master : .expert
 
-        var best: (givens: Grid, solution: Grid, distance: Int)?
+        // score = (rating misses acceptance ? 1 : 0, clues over the cap) —
+        // lexicographically smaller is closer to qualifying.
+        var best: (givens: Grid, solution: Grid, score: (Int, Int))?
         let maxAttempts = 60
         // After this many misses, accept a rating one band away rather than
         // grinding on toward the attempt cap.
@@ -80,20 +92,48 @@ public enum Generator {
                 }
             }
 
+            if deepDig {
+                // Single-cell pass, breaking symmetry to shed more clues. One
+                // pass suffices: a removal that breaks uniqueness now can only
+                // break it after further removals too.
+                var clueCells = (0..<81).filter { puzzle.cells[$0] != 0 }
+                clueCells.shuffle(using: &rng)
+                for i in clueCells {
+                    if clues <= clueFloor { break }
+                    let saved = puzzle.cells[i]
+                    puzzle.cells[i] = 0
+                    if Solver.countSolutions(puzzle, limit: 2) == 1 {
+                        clues -= 1
+                    } else {
+                        puzzle.cells[i] = saved
+                    }
+                }
+            }
+
             let rating = Rater.rate(puzzle)
-            if rating == difficulty {
-                return Puzzle(givens: puzzle, solution: solution, difficulty: difficulty)
-            }
-            let distance = abs(rating.rawValue - difficulty.rawValue)
-            if best == nil || distance < best!.distance {
-                best = (puzzle, solution, distance)
-            }
-            if attempt >= nearBandThreshold, best!.distance <= 1 {
-                break
+            if deepDig {
+                if clues <= maxClues && rating >= minRating {
+                    return Puzzle(givens: puzzle, solution: solution, difficulty: difficulty)
+                }
+                let score = (rating >= minRating ? 0 : 1, max(0, clues - maxClues))
+                if best == nil || score < best!.score {
+                    best = (puzzle, solution, score)
+                }
+            } else {
+                if rating == difficulty {
+                    return Puzzle(givens: puzzle, solution: solution, difficulty: difficulty)
+                }
+                let distance = abs(rating.rawValue - difficulty.rawValue)
+                if best == nil || distance < best!.score.0 {
+                    best = (puzzle, solution, (distance, 0))
+                }
+                if attempt >= nearBandThreshold, best!.score.0 <= 1 {
+                    break
+                }
             }
         }
 
-        // Fallback: nearest achieved band, labelled with the requested level.
+        // Fallback: nearest qualifying puzzle, labelled with the requested level.
         let fallback = best!
         return Puzzle(givens: fallback.givens, solution: fallback.solution, difficulty: difficulty)
     }
