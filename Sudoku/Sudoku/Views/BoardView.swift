@@ -166,8 +166,15 @@ private struct CellView: View {
                         Text(pencil.contains(digit: digit) ? "\(digit)" : " ")
                             .font(.system(size: 9, weight: isHighlighted ? .bold : .regular))
                             .minimumScaleFactor(0.5)
-                            .foregroundStyle(isHighlighted ? Theme.givenText : Theme.pencilText)
+                            .foregroundStyle(isHighlighted ? .white : Theme.pencilText)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            // A filled chip so the matching note is findable at
+                            // a glance, not just a bolder glyph.
+                            .background(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(isHighlighted ? Color.accentColor : Color.clear)
+                                    .padding(0.5)
+                            )
                     }
                 }
             }
