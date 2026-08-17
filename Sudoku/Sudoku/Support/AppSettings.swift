@@ -24,6 +24,25 @@ enum MistakeMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// What the coverage highlight shades when a number is active.
+enum CoverageMode: String, CaseIterable, Identifiable {
+    /// Rows, columns, and boxes of every placement of the digit.
+    case allPlacements
+    /// Only the selected cell's own row, column, and box.
+    case selectedCell
+    case off
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .allPlacements: "All placements"
+        case .selectedCell: "Selected cell"
+        case .off: "Off"
+        }
+    }
+}
+
 enum AppearanceMode: String, CaseIterable, Identifiable {
     case auto, light, dark
 
@@ -45,7 +64,8 @@ enum SettingsKeys {
     static let highlightPeers = "highlightPeers"
     static let errorLimitEnabled = "errorLimitEnabled"
     static let highlightSameDigits = "highlightSameDigits"
-    static let highlightCoverage = "highlightCoverage"
+    static let highlightCoverage = "highlightCoverage" // legacy Bool, migrated to coverageMode
+    static let coverageMode = "coverageMode"
     static let showLayerEliminations = "showLayerEliminations"
     static let showTimer = "showTimer"
     static let showScore = "showScore"
@@ -82,8 +102,16 @@ enum AppSettings {
         UserDefaults.standard.object(forKey: SettingsKeys.highlightSameDigits) as? Bool ?? true
     }
 
-    static var highlightCoverage: Bool {
-        UserDefaults.standard.object(forKey: SettingsKeys.highlightCoverage) as? Bool ?? true
+    static var coverageMode: CoverageMode {
+        if let raw = UserDefaults.standard.string(forKey: SettingsKeys.coverageMode),
+           let mode = CoverageMode(rawValue: raw) {
+            return mode
+        }
+        // Migrate the retired on/off toggle: an explicit "off" is preserved.
+        if UserDefaults.standard.object(forKey: SettingsKeys.highlightCoverage) as? Bool == false {
+            return .off
+        }
+        return .selectedCell
     }
 
     static var showLayerEliminations: Bool {

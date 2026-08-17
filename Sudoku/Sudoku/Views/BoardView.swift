@@ -5,7 +5,7 @@ struct BoardView: View {
     @Bindable var vm: GameViewModel
     @AppStorage(SettingsKeys.highlightPeers) private var highlightPeers = true
     @AppStorage(SettingsKeys.highlightSameDigits) private var highlightSameDigits = true
-    @AppStorage(SettingsKeys.highlightCoverage) private var highlightCoverage = true
+    @AppStorage(SettingsKeys.coverageMode) private var coverageModeRaw = CoverageMode.selectedCell.rawValue
     @AppStorage(SettingsKeys.showLayerEliminations) private var showLayerEliminations = true
 
     var body: some View {
@@ -85,17 +85,32 @@ struct BoardView: View {
         return vm.lockedDigit ?? 0
     }
 
-    /// Every cell in a row or column already containing the digit — the places
-    /// it can no longer go.
+    /// Cells the active digit can no longer occupy — the row, column, and box
+    /// of its placements. Scope depends on the coverage setting: every
+    /// placement on the board, or just the selected cell's own.
     private func coveredCells(by digit: UInt8) -> Set<Int> {
-        guard highlightCoverage, digit != 0 else { return [] }
+        let mode = CoverageMode(rawValue: coverageModeRaw) ?? .selectedCell
+        guard mode != .off, digit != 0 else { return [] }
         var covered: Set<Int> = []
-        for i in 0..<81 where vm.displayValues.cells[i] == digit {
+        func cover(from i: Int) {
             let row = i / 9, col = i % 9
             for k in 0..<9 {
                 covered.insert(row * 9 + k)
                 covered.insert(k * 9 + col)
             }
+            covered.formUnion(SudokuKit.Grid.units[18 + SudokuKit.Grid.box(of: i)])
+        }
+        switch mode {
+        case .allPlacements:
+            for i in 0..<81 where vm.displayValues.cells[i] == digit {
+                cover(from: i)
+            }
+        case .selectedCell:
+            if let selected = vm.selected, vm.displayValues.cells[selected] == digit {
+                cover(from: selected)
+            }
+        case .off:
+            break
         }
         return covered
     }

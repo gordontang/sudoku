@@ -262,7 +262,7 @@ enum TechniqueContent {
         steps: [
             "Fill complete candidates: long-press the Pencil button so every empty cell shows exactly its legal digits. Advanced techniques only work with complete, accurate notes.",
             "Sweep singles: any cell with one candidate, any digit with one home in a row, column, or box.",
-            "Select a number (or tap one of its placements) to light up its coverage — rows and columns where it's already settled — and every cell where it's still penciled. Scan digits 1–9 this way.",
+            "Select a number (or tap one of its placements) to light up its coverage — the rows, columns, and boxes it already rules out — and every cell where it's still penciled. Scan digits 1–9 this way. (The Covered Cells setting picks whether coverage comes from every placement or just the selected cell.)",
             "Hunt eliminations: Locked Candidates, then pairs and triples, then X-Wing and XY-Wing. After each elimination, re-sweep singles.",
             "Still stuck? That's chain territory — add an Alt and test a candidate (see Forcing Chains).",
         ]
