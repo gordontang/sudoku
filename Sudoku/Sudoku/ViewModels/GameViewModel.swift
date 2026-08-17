@@ -387,6 +387,12 @@ final class GameViewModel {
             if old == digit {
                 layer.undoStack.append(Move(valueChanges: [(cell, old)], pencilChanges: []))
                 layer.values.cells[cell] = 0
+            } else if !layer.values.isLegal(digit: digit, at: cell) {
+                // A trial that clashes with a row/column/box peer isn't a
+                // hypothesis, just an illegal move — refuse it. (The real
+                // game allows it because the mistake system handles it.)
+                Haptics.warning()
+                return
             } else {
                 var move = Move(valueChanges: [(cell, old)], pencilChanges: [(cell, layer.pencil[cell])])
                 // Always propagate a trial digit into peers' candidates —
