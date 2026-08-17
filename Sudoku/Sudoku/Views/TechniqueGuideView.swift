@@ -264,7 +264,7 @@ enum TechniqueContent {
             "Sweep singles: any cell with one candidate, any digit with one home in a row, column, or box.",
             "Select a number (or tap one of its placements) to light up its coverage — rows and columns where it's already settled — and every cell where it's still penciled. Scan digits 1–9 this way.",
             "Hunt eliminations: Locked Candidates, then pairs and triples, then X-Wing and XY-Wing. After each elimination, re-sweep singles.",
-            "Still stuck? That's chain territory — add a Layer and test a candidate (see Forcing Chains).",
+            "Still stuck? That's chain territory — add an Alt and test a candidate (see Forcing Chains).",
         ]
     )
 
@@ -473,21 +473,21 @@ enum TechniqueContent {
     )
 
     static let forcingChains = TechniqueTopic(
-        name: "Forcing Chains & Layers",
+        name: "Forcing Chains & Alts",
         tagline: "Test a candidate with a what-if sheet",
         description: """
         When patterns run out, follow the logic forward: assume a candidate, \
         propagate the consequences, and see what breaks or repeats. This is \
-        exactly what the Layer button is for — a translucent sheet over the \
+        exactly what the Alt button is for — a practice copy of the \
         real game where trial moves are sandboxed and every change is marked \
         (purple = trial digit, struck-through = eliminated note, green = new \
         note).
         """,
         steps: [
-            "Pick a promising cell — ideally two candidates, in a crowded region. Add a Layer.",
+            "Pick a promising cell — ideally two candidates, in a crowded region. Add an Alt.",
             "Place one candidate as a trial digit. Its eliminations show struck through; when a cell is down to a single note, follow it with another trial placement.",
-            "Contradiction (a cell with no candidates, or a unit that can't fit a digit)? The assumption was false — the other candidate is real. Clear the layers and play it in the real game.",
-            "No contradiction? Add another Layer and test the other candidate. Any cell that resolves the same way in both branches is certain either way — play that.",
+            "Contradiction (a cell with no candidates, or a unit that can't fit a digit)? The assumption was false — the other candidate is real. Discard the alts and play it in the real game.",
+            "No contradiction? Add another Alt and test the other candidate. Any cell that resolves the same way in both branches is certain either way — play that.",
             "Every sheet branches from the real game, so flip between the chips to compare alternate paths side by side; remove a refuted branch with the trash button.",
         ]
     )

@@ -127,10 +127,10 @@ private struct GameContentView: View {
                 .interactiveDismissDisabled()
         }
         .alert("Play on the real board?", isPresented: $vm.showDiscardLayersPrompt) {
-            Button("Discard Layers & Play", role: .destructive) { vm.confirmDiscardLayersAndPlay() }
+            Button("Discard Alts & Play", role: .destructive) { vm.confirmDiscardLayersAndPlay() }
             Button("Cancel", role: .cancel) { vm.cancelDiscardLayers() }
         } message: {
-            Text("This move applies to the real game and discards your what-if layers.")
+            Text("This move applies to the real game and discards your alts.")
         }
         .alert("Out of mistakes", isPresented: $vm.showFailure) {
             Button("Back to Home") { exit() }
@@ -236,7 +236,7 @@ private struct GameContentView: View {
                     vm.viewLayer(nil)
                 }
                 ForEach(vm.layers.indices, id: \.self) { i in
-                    layerChip("L\(i + 1)", isActive: vm.viewedLayer == i, id: "layer_\(i + 1)") {
+                    layerChip("Alt \(i + 1)", isActive: vm.viewedLayer == i, id: "layer_\(i + 1)") {
                         vm.viewLayer(i)
                     }
                 }
@@ -244,7 +244,7 @@ private struct GameContentView: View {
                     Image(systemName: "lock")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .accessibilityLabel("Read-only — edits go to the top layer")
+                        .accessibilityLabel("Read-only — switch to an alt to edit")
                 }
                 Spacer()
                 // Struck-out notes can get noisy — let the player hide them.
@@ -268,18 +268,18 @@ private struct GameContentView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Delete layers")
+                .accessibilityLabel("Delete alts")
                 .accessibilityIdentifier("layer_trash")
                 .confirmationDialog(
-                    "Layers are practice sheets and can't be recovered.",
+                    "Alts are practice copies and can't be recovered.",
                     isPresented: $showLayerDeleteConfirm,
                     titleVisibility: .visible
                 ) {
                     if vm.layers.count > 1 {
                         Button("Remove \(viewedLayerName)", role: .destructive) { vm.dropLayer() }
-                        Button("Discard All Layers", role: .destructive) { vm.clearLayers() }
+                        Button("Discard All Alts", role: .destructive) { vm.clearLayers() }
                     } else {
-                        Button("Discard Layer", role: .destructive) { vm.clearLayers() }
+                        Button("Discard Alt", role: .destructive) { vm.clearLayers() }
                     }
                     Button("Cancel", role: .cancel) {}
                 }
@@ -291,7 +291,7 @@ private struct GameContentView: View {
     /// The chip name of the sheet the trash button would remove: the viewed
     /// one, or the newest when viewing the game.
     private var viewedLayerName: String {
-        "L\((vm.viewedLayer ?? vm.layers.count - 1) + 1)"
+        "Alt \((vm.viewedLayer ?? vm.layers.count - 1) + 1)"
     }
 
     private func layerChip(
@@ -405,9 +405,9 @@ private struct GameToolbar: View {
             toolbarButton("Erase", systemImage: "eraser") {
                 vm.erase()
             }
-            // Chain layers: what-if sheets stacked on the real game.
+            // Alts: what-if copies of the game for testing alternate paths.
             toolbarButton(
-                "Layer",
+                "Alt",
                 systemImage: "square.3.layers.3d",
                 disabled: vm.layers.count >= GameViewModel.layerLimit
             ) {
