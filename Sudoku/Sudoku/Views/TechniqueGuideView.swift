@@ -488,7 +488,7 @@ enum TechniqueContent {
             "Place one candidate as a trial digit. Its eliminations show struck through; when a cell is down to a single note, follow it with another trial placement.",
             "Contradiction (a cell with no candidates, or a unit that can't fit a digit)? The assumption was false — the other candidate is real. Clear the layers and play it in the real game.",
             "No contradiction? Add another Layer and test the other candidate. Any cell that resolves the same way in both branches is certain either way — play that.",
-            "Flip between the Game and layer chips to compare branches; peel sheets with the minus button as you backtrack.",
+            "Every sheet branches from the real game, so flip between the chips to compare alternate paths side by side; remove a refuted branch with the minus button.",
         ]
     )
 }

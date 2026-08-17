@@ -258,14 +258,14 @@ private struct GameContentView: View {
                 .accessibilityLabel(showLayerEliminations ? "Hide eliminated notes" : "Show eliminated notes")
                 .accessibilityIdentifier("layer_strikes")
                 Button {
-                    vm.dropTopLayer()
+                    vm.dropLayer()
                 } label: {
                     Image(systemName: "minus.circle")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Remove top layer")
+                .accessibilityLabel("Remove this layer")
                 .accessibilityIdentifier("layer_drop")
                 Button {
                     vm.clearLayers()

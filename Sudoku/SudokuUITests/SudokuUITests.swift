@@ -83,6 +83,11 @@ final class SudokuUITests: XCTestCase {
         app.buttons["digit_8"].tap()
         XCTAssertTrue(cell.label.contains("contains 8"), "trial digit should show in the layer, got: \(cell.label)")
 
+        // A second sheet branches from the real game, not from L1.
+        app.buttons["layer"].tap()
+        XCTAssertTrue(app.buttons["layer_2"].waitForExistence(timeout: 3), "Second layer chip should appear")
+        XCTAssertTrue(cell.label.contains("notes 7"), "new sheet must copy the game, got: \(cell.label)")
+
         app.buttons["layer_game"].tap()
         XCTAssertTrue(cell.label.contains("notes 7"), "real game must be untouched, got: \(cell.label)")
 

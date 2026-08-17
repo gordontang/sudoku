@@ -10,9 +10,10 @@ struct Move {
     var pencilChanges: [(cell: Int, old: CandidateSet)]
 }
 
-/// A chain-analysis sheet: an editable copy of board state layered on top of
-/// the real game, used to follow "what if this cell were X" chains without
-/// touching real progress, mistakes, or score.
+/// A chain-analysis sheet: an editable copy of the real game's board state,
+/// used to follow "what if this cell were X" chains without touching real
+/// progress, mistakes, or score. Sheets are independent siblings — each
+/// branches from the game, so alternate paths can be built and compared.
 struct ChainLayer {
     var values: Grid
     var pencil: [CandidateSet]
@@ -42,12 +43,11 @@ final class GameViewModel {
     var scoreFlash: ScoreFlash?
     /// Number-first mode: a long-pressed pad digit; tapping cells places it.
     private(set) var lockedDigit: UInt8?
-    /// What-if sheets stacked on the real game for following chains. Each
-    /// layer is a full editable copy of board state; the real game and lower
-    /// layers stay frozen underneath. Transient — not persisted.
+    /// What-if sheets branching from the real game. Each is an independent,
+    /// editable alternate path; the real game stays frozen while any exist.
+    /// Transient — not persisted.
     private(set) var layers: [ChainLayer] = []
-    /// Which state the board shows: nil = the real game. Only the top layer
-    /// accepts edits while any layers exist.
+    /// Which state the board shows and edits: nil = the real game.
     private(set) var viewedLayer: Int?
     /// A move was attempted on the real game while layers exist — ask before
     /// discarding them and playing it for real.
@@ -218,24 +218,22 @@ final class GameViewModel {
         viewedLayer.map { layers[$0].pencil } ?? pencil
     }
 
-    /// The state directly beneath the viewed layer — what diffs compare
-    /// against. Nil when viewing the real game.
+    /// What every sheet diffs against: the real game. Nil when viewing it.
     var diffBaseState: (values: Grid, pencil: [CandidateSet])? {
-        guard let vi = viewedLayer else { return nil }
-        return vi == 0 ? (values, pencil) : (layers[vi - 1].values, layers[vi - 1].pencil)
+        viewedLayer == nil ? nil : (values, pencil)
     }
 
-    /// Whether the currently viewed state accepts edits. While layers exist,
-    /// only the top sheet is editable; the real game resumes once cleared.
+    /// Whether the currently viewed state accepts edits. Every sheet is
+    /// editable; the real game is read-only while any sheets exist.
     var canEditViewedState: Bool {
-        layers.isEmpty || viewedLayer == layers.count - 1
+        layers.isEmpty || viewedLayer != nil
     }
 
-    /// Add a new sheet copying the top of the stack (or the real game).
+    /// Add a new sheet copying the real game — each sheet is an independent
+    /// branch, so alternate paths start from the same board.
     func addLayer() {
         guard !isGameOver, !isPaused, layers.count < Self.layerLimit else { return }
-        let top = layers.last
-        layers.append(ChainLayer(values: top?.values ?? values, pencil: top?.pencil ?? pencil))
+        layers.append(ChainLayer(values: values, pencil: pencil))
         viewedLayer = layers.count - 1
         if layers.count == 1 {
             // First sheet: explain the sandbox once per chain session.
@@ -257,15 +255,12 @@ final class GameViewModel {
         pendingDigit = nil
     }
 
-    /// Peel off the top sheet (a refuted chain step).
-    func dropTopLayer() {
+    /// Remove the viewed sheet — a refuted branch — or the newest one when
+    /// viewing the game. Lands back on the game view either way.
+    func dropLayer() {
         guard !layers.isEmpty else { return }
-        layers.removeLast()
-        if layers.isEmpty {
-            viewedLayer = nil
-        } else if let vi = viewedLayer {
-            viewedLayer = min(vi, layers.count - 1)
-        }
+        layers.remove(at: viewedLayer ?? layers.count - 1)
+        viewedLayer = nil
         Haptics.light()
     }
 
@@ -373,8 +368,7 @@ final class GameViewModel {
     /// Chain-mode input: edits go to the top sheet only, with no score,
     /// mistakes, completion, or persistence — it's all hypothetical.
     private func tapDigitInLayer(_ digit: UInt8, cell: Int) {
-        guard let vi = viewedLayer, vi == layers.count - 1 else {
-            // Viewing a frozen lower sheet — only the top one is editable.
+        guard let vi = viewedLayer else {
             Haptics.warning()
             return
         }
@@ -439,7 +433,7 @@ final class GameViewModel {
     func erase() {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
         if !layers.isEmpty {
-            guard let vi = viewedLayer, vi == layers.count - 1 else {
+            guard let vi = viewedLayer else {
                 Haptics.warning()
                 return
             }
@@ -465,13 +459,14 @@ final class GameViewModel {
     /// Whether the undo button applies to the state being viewed.
     var canUndo: Bool {
         if layers.isEmpty { return !undoStack.isEmpty }
-        return viewedLayer == layers.count - 1 && !(layers.last?.undoStack.isEmpty ?? true)
+        guard let vi = viewedLayer else { return false }
+        return !layers[vi].undoStack.isEmpty
     }
 
     func undo() {
         guard !isGameOver, !isPaused else { return }
         if !layers.isEmpty {
-            guard let vi = viewedLayer, vi == layers.count - 1, !layers[vi].undoStack.isEmpty else { return }
+            guard let vi = viewedLayer, !layers[vi].undoStack.isEmpty else { return }
             var layer = layers[vi]
             let move = layer.undoStack.removeLast()
             for (cell, old) in move.valueChanges {
@@ -498,7 +493,7 @@ final class GameViewModel {
     func fillAllCandidates() {
         guard !isGameOver, !isPaused else { return }
         if !layers.isEmpty {
-            guard let vi = viewedLayer, vi == layers.count - 1 else {
+            guard let vi = viewedLayer else {
                 Haptics.warning()
                 return
             }
