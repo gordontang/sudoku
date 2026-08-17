@@ -7,6 +7,7 @@ enum Route: Hashable {
     case resume
     case stats
     case settings
+    case guide
 }
 
 struct HomeView: View {
@@ -48,6 +49,11 @@ struct HomeView: View {
             .navigationTitle("Sudoku")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: Route.guide) {
+                        Label("Techniques", systemImage: "book")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: Route.stats) {
                         Label("Statistics", systemImage: "chart.bar")
                     }
@@ -74,6 +80,8 @@ struct HomeView: View {
                     StatsView()
                 case .settings:
                     SettingsView()
+                case .guide:
+                    TechniqueGuideView()
                 }
             }
         }

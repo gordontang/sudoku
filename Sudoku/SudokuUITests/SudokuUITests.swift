@@ -46,21 +46,64 @@ final class SudokuUITests: XCTestCase {
     func testPencilMarksAndUndo() {
         let app = launchApp()
         let cell = startEasyGame(app)
+        // r1c1's only legal candidates are 7 and 8 — illegal notes are rejected.
         cell.tap()
         app.buttons["pencil"].tap()
-        app.buttons["digit_1"].tap()
-        XCTAssertTrue(cell.label.contains("notes 1"), "got: \(cell.label)")
-        app.buttons["digit_2"].tap()
-        XCTAssertTrue(cell.label.contains("notes 1, 2"), "got: \(cell.label)")
+        app.buttons["digit_7"].tap()
+        XCTAssertTrue(cell.label.contains("notes 7"), "got: \(cell.label)")
+        app.buttons["digit_8"].tap()
+        XCTAssertTrue(cell.label.contains("notes 7, 8"), "got: \(cell.label)")
+        app.buttons["digit_1"].tap() // illegal: 1 is already in column and box
+        XCTAssertTrue(cell.label.contains("notes 7, 8"), "illegal note must be rejected, got: \(cell.label)")
         app.buttons["pencil"].tap() // pencil off
         app.buttons["digit_8"].tap() // real value replaces notes
         XCTAssertTrue(cell.label.contains("contains 8"))
-        app.buttons["undo"].tap() // back to notes 1,2
-        XCTAssertTrue(cell.label.contains("notes 1, 2"), "undo should restore notes, got: \(cell.label)")
-        app.buttons["undo"].tap() // back to notes 1
-        XCTAssertTrue(cell.label.contains("notes 1"))
+        app.buttons["undo"].tap() // back to notes 7,8
+        XCTAssertTrue(cell.label.contains("notes 7, 8"), "undo should restore notes, got: \(cell.label)")
+        app.buttons["undo"].tap() // back to notes 7
+        XCTAssertTrue(cell.label.contains("notes 7"))
         app.buttons["undo"].tap() // back to empty
         XCTAssertTrue(cell.label.contains("empty"))
+    }
+
+    func testChainLayers() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        // Note a candidate in the real game first.
+        cell.tap()
+        app.buttons["pencil"].tap()
+        app.buttons["digit_7"].tap()
+        XCTAssertTrue(cell.label.contains("notes 7"), "got: \(cell.label)")
+        app.buttons["pencil"].tap() // pencil off
+
+        // New sheet: place a trial digit; the real game must stay untouched.
+        app.buttons["layer"].tap()
+        XCTAssertTrue(app.buttons["layer_1"].waitForExistence(timeout: 3), "Layer bar should appear")
+        cell.tap()
+        app.buttons["digit_8"].tap()
+        XCTAssertTrue(cell.label.contains("contains 8"), "trial digit should show in the layer, got: \(cell.label)")
+
+        app.buttons["layer_game"].tap()
+        XCTAssertTrue(cell.label.contains("notes 7"), "real game must be untouched, got: \(cell.label)")
+
+        // Discard the sheets and keep playing for real.
+        app.buttons["layer_clear"].tap()
+        XCTAssertFalse(app.buttons["layer_game"].exists, "Layer bar should disappear")
+        app.buttons["digit_8"].tap()
+        XCTAssertTrue(cell.label.contains("contains 8"), "got: \(cell.label)")
+    }
+
+    func testTechniqueGuideOpensDuringGame() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        app.buttons["guide"].tap()
+        let topic = app.staticTexts["Naked Single"]
+        XCTAssertTrue(topic.waitForExistence(timeout: 5), "Guide list should appear")
+        topic.tap()
+        XCTAssertTrue(app.staticTexts["How to use it"].waitForExistence(timeout: 5), "Topic detail should appear")
+        app.navigationBars.buttons.firstMatch.tap() // back to the list
+        app.buttons["guide_done"].tap()
+        XCTAssertTrue(cell.waitForExistence(timeout: 5), "Game should still be active after closing the guide")
     }
 
     func testEraseClearsCell() {
