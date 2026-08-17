@@ -76,20 +76,27 @@ final class SudokuUITests: XCTestCase {
         XCTAssertTrue(cell.label.contains("notes 7"), "got: \(cell.label)")
         app.buttons["pencil"].tap() // pencil off
 
-        // New sheet: place a trial digit; the real game must stay untouched.
-        app.buttons["layer"].tap()
-        XCTAssertTrue(app.buttons["layer_1"].waitForExistence(timeout: 3), "Layer bar should appear")
+        // New alt: place a trial digit; the real game must stay untouched.
+        app.buttons["alt"].tap()
+        XCTAssertTrue(app.buttons["layer_1"].waitForExistence(timeout: 3), "Alt bar should appear")
         cell.tap()
         app.buttons["digit_8"].tap()
         XCTAssertTrue(cell.label.contains("contains 8"), "trial digit should show in the layer, got: \(cell.label)")
 
+        // A second alt branches from the real game, not from Alt 1.
+        app.buttons["alt"].tap()
+        XCTAssertTrue(app.buttons["layer_2"].waitForExistence(timeout: 3), "Second alt chip should appear")
+        XCTAssertTrue(cell.label.contains("notes 7"), "new alt must copy the game, got: \(cell.label)")
+
         app.buttons["layer_game"].tap()
         XCTAssertTrue(cell.label.contains("notes 7"), "real game must be untouched, got: \(cell.label)")
 
-        // Discard the sheets and keep playing for real.
-        app.buttons["layer_clear"].tap()
-        XCTAssertFalse(app.buttons["layer_game"].exists, "Layer bar should disappear")
+        // Playing on the real board prompts to discard the alts first.
         app.buttons["digit_8"].tap()
+        let discard = app.alerts.buttons["Discard Alts & Play"]
+        XCTAssertTrue(discard.waitForExistence(timeout: 3), "Discard prompt should appear")
+        discard.tap()
+        XCTAssertFalse(app.buttons["layer_game"].exists, "Alt bar should disappear")
         XCTAssertTrue(cell.label.contains("contains 8"), "got: \(cell.label)")
     }
 

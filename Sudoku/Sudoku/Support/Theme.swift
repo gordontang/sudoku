@@ -34,12 +34,15 @@ enum Theme {
     static let mistakeText = Color.red
     static let pencilText = Color.secondary
     // Chain-layer diffs: trial digits and marks added/removed/forced relative
-    // to the sheet underneath. Removed marks fade and strike through rather
-    // than turn red — an elimination is progress, not an error.
-    static let trialText = Color(.systemOrange)
+    // to the sheet underneath. Purple for the hypothesis line (orange reads
+    // too much like an error next to mistake red); removed marks fade and
+    // strike through rather than turn red — an elimination is progress.
+    static let trialText = Color(.systemPurple)
     static let pencilAddedText = Color(.systemGreen)
     static let pencilRemovedText = Color.secondary.opacity(0.45)
-    static let pencilForcedText = Color(.systemOrange)
+    /// The diagonal slash over an eliminated note — stronger than the faded
+    /// digit so the elimination reads at pencil-mark size.
+    static let pencilStrike = Color.secondary
     static let gridLineMajor = Color.primary.opacity(0.8)
     static let gridLineMinor = Color.primary.opacity(0.22)
 }

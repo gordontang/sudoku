@@ -6,6 +6,7 @@ struct BoardView: View {
     @AppStorage(SettingsKeys.highlightPeers) private var highlightPeers = true
     @AppStorage(SettingsKeys.highlightSameDigits) private var highlightSameDigits = true
     @AppStorage(SettingsKeys.highlightCoverage) private var highlightCoverage = true
+    @AppStorage(SettingsKeys.showLayerEliminations) private var showLayerEliminations = true
 
     var body: some View {
         let digit = vm.isPaused ? 0 : activeDigit
@@ -49,7 +50,7 @@ struct BoardView: View {
         var removed = CandidateSet()
         var added = CandidateSet()
         if let diff {
-            if value == 0 {
+            if value == 0 && showLayerEliminations {
                 removed = diff.pencil[index].subtracting(marks)
             }
             added = marks.subtracting(diff.pencil[index])
@@ -110,13 +111,11 @@ struct BoardView: View {
         if index == vm.selected {
             return Theme.cellSelected
         }
-        if highlightSameDigits && activeDigit != 0 {
-            if vm.displayValues.cells[index] == activeDigit {
-                return Theme.cellSameDigit
-            }
-            if vm.displayValues.cells[index] == 0 && vm.displayPencil[index].contains(digit: activeDigit) {
-                return Theme.cellSameDigit
-            }
+        // Only placed digits tint the whole cell. A matching pencil mark is
+        // indicated by the chip on the mark itself — tinting those cells too
+        // (on top of coverage shading) drowned the board in highlights.
+        if highlightSameDigits && activeDigit != 0 && vm.displayValues.cells[index] == activeDigit {
+            return Theme.cellSameDigit
         }
         if let selected = vm.selected, highlightPeers, SudokuKit.Grid.peers[selected].contains(index) {
             return Theme.cellPeer
@@ -208,16 +207,12 @@ private struct CellView: View {
                         let present = pencil.contains(digit: digit)
                         let removed = !present && pencilRemoved.contains(digit: digit)
                         let isHighlighted = present && digit == highlightDigit
-                        // A cell reduced to one candidate by this sheet's
-                        // eliminations is a forced placement — call it out.
-                        let isForced = present && pencil.count == 1 && !pencilRemoved.isEmpty
                         Text(present || removed ? "\(digit)" : " ")
-                            .font(.system(size: 9, weight: isHighlighted || isForced ? .bold : .regular))
-                            .strikethrough(removed)
+                            .font(.system(size: 9, weight: isHighlighted ? .bold : .regular))
                             .minimumScaleFactor(0.5)
                             .foregroundStyle(markColor(
                                 digit: digit, present: present, removed: removed,
-                                isHighlighted: isHighlighted, isForced: isForced
+                                isHighlighted: isHighlighted
                             ))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             // A filled chip so the matching note is findable at
@@ -227,6 +222,15 @@ private struct CellView: View {
                                     .fill(isHighlighted ? Color.accentColor : Color.clear)
                                     .padding(0.5)
                             )
+                            // Diagonal slash for eliminated notes — a text
+                            // strikethrough is invisible at this size.
+                            .overlay {
+                                if removed {
+                                    DiagonalStrike()
+                                        .stroke(Theme.pencilStrike, lineWidth: 1)
+                                        .padding(2.5)
+                                }
+                            }
                     }
                 }
             }
@@ -234,12 +238,14 @@ private struct CellView: View {
         .padding(1)
     }
 
+    // Only the player's own changes get styling — added marks green, removed
+    // marks struck through. No "forced cell" emphasis: inside a hypothesis
+    // the app shouldn't suggest which digits are right.
     private func markColor(
-        digit: UInt8, present: Bool, removed: Bool, isHighlighted: Bool, isForced: Bool
+        digit: UInt8, present: Bool, removed: Bool, isHighlighted: Bool
     ) -> Color {
         if isHighlighted { return .white }
         if removed { return Theme.pencilRemovedText }
-        if isForced { return Theme.pencilForcedText }
         if pencilAdded.contains(digit: digit) { return Theme.pencilAddedText }
         return Theme.pencilText
     }
@@ -256,6 +262,16 @@ private struct CellView: View {
             if isMistake { label += ", incorrect" }
         }
         return label
+    }
+}
+
+/// Bottom-left to top-right slash over an eliminated pencil mark.
+private struct DiagonalStrike: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        return path
     }
 }
 
