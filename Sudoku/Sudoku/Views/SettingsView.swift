@@ -7,7 +7,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKeys.highlightPeers) private var highlightPeers = true
     @AppStorage(SettingsKeys.errorLimitEnabled) private var errorLimitEnabled = false
     @AppStorage(SettingsKeys.highlightSameDigits) private var highlightSameDigits = true
-    @AppStorage(SettingsKeys.highlightCoverage) private var highlightCoverage = true
+    @AppStorage(SettingsKeys.coverageMode) private var coverageModeRaw = CoverageMode.selectedCell.rawValue
     @AppStorage(SettingsKeys.showTimer) private var showTimer = true
     @AppStorage(SettingsKeys.showScore) private var showScore = true
     @AppStorage(SettingsKeys.soundEffects) private var soundEffects = true
@@ -52,13 +52,17 @@ struct SettingsView: View {
                 Toggle("Auto-clear pencil marks", isOn: $autoClearPencil)
                 Toggle("Highlight row, column & box", isOn: $highlightPeers)
                 Toggle("Highlight same numbers", isOn: $highlightSameDigits)
-                Toggle("Highlight covered rows & columns", isOn: $highlightCoverage)
+                Picker("Covered cells", selection: $coverageModeRaw) {
+                    ForEach(CoverageMode.allCases) { mode in
+                        Text(mode.label).tag(mode.rawValue)
+                    }
+                }
                 Toggle("Apply auto-complete instantly", isOn: $autoApplyAutoComplete)
                 Toggle("Keep screen awake", isOn: $keepScreenOn)
             } header: {
                 Text("Gameplay")
             } footer: {
-                Text("Long-press a number on the pad to lock it, then tap cells to place it repeatedly. When covered rows & columns are highlighted, selecting a number shades everywhere it can no longer go. When auto-complete applies instantly, the endgame fills itself the moment it's all forced moves.")
+                Text("Long-press a number on the pad to lock it, then tap cells to place it repeatedly. Covered cells shade the rows, columns, and boxes a selected number rules out — from every placement on the board, or just from the selected cell. When auto-complete applies instantly, the endgame fills itself the moment it's all forced moves.")
             }
 
             Section("Sound & Haptics") {

@@ -39,6 +39,7 @@ enum UITestSupport {
             SettingsKeys.errorLimitEnabled,
             SettingsKeys.highlightSameDigits,
             SettingsKeys.highlightCoverage,
+            SettingsKeys.coverageMode,
             SettingsKeys.showLayerEliminations,
             SettingsKeys.showTimer,
             SettingsKeys.showScore,
