@@ -86,10 +86,12 @@ final class SudokuUITests: XCTestCase {
         app.buttons["layer_game"].tap()
         XCTAssertTrue(cell.label.contains("notes 7"), "real game must be untouched, got: \(cell.label)")
 
-        // Discard the sheets and keep playing for real.
-        app.buttons["layer_clear"].tap()
-        XCTAssertFalse(app.buttons["layer_game"].exists, "Layer bar should disappear")
+        // Playing on the real board prompts to discard the sheets first.
         app.buttons["digit_8"].tap()
+        let discard = app.alerts.buttons["Discard Layers & Play"]
+        XCTAssertTrue(discard.waitForExistence(timeout: 3), "Discard prompt should appear")
+        discard.tap()
+        XCTAssertFalse(app.buttons["layer_game"].exists, "Layer bar should disappear")
         XCTAssertTrue(cell.label.contains("contains 8"), "got: \(cell.label)")
     }
 

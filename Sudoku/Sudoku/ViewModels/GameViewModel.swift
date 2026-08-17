@@ -49,6 +49,10 @@ final class GameViewModel {
     /// Which state the board shows: nil = the real game. Only the top layer
     /// accepts edits while any layers exist.
     private(set) var viewedLayer: Int?
+    /// A move was attempted on the real game while layers exist — ask before
+    /// discarding them and playing it for real.
+    var showDiscardLayersPrompt = false
+    private var pendingDigit: UInt8?
     /// Cells of a just-completed row/column/box, briefly highlighted.
     private(set) var flashCells: Set<Int> = []
     private var flashID = UUID()
@@ -233,7 +237,24 @@ final class GameViewModel {
         let top = layers.last
         layers.append(ChainLayer(values: top?.values ?? values, pencil: top?.pencil ?? pencil))
         viewedLayer = layers.count - 1
+        if layers.count == 1 {
+            // First sheet: explain the sandbox once per chain session.
+            hintMessage = "What-if sheet added — moves here are practice and never touch the real game. Switch views with the chips above the board; ✕ discards all sheets."
+        }
         Haptics.light()
+    }
+
+    /// Confirmed from the discard prompt: drop all sheets, then play the
+    /// pending move on the real board.
+    func confirmDiscardLayersAndPlay() {
+        guard let digit = pendingDigit else { return }
+        pendingDigit = nil
+        clearLayers()
+        tapDigit(digit)
+    }
+
+    func cancelDiscardLayers() {
+        pendingDigit = nil
     }
 
     /// Peel off the top sheet (a refuted chain step).
@@ -286,6 +307,13 @@ final class GameViewModel {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
 
         if !layers.isEmpty {
+            // A move on the Game view means leaving chain mode — confirm
+            // before discarding the sheets and playing it for real.
+            if viewedLayer == nil {
+                pendingDigit = digit
+                showDiscardLayersPrompt = true
+                return
+            }
             tapDigitInLayer(digit, cell: cell)
             return
         }
@@ -346,7 +374,7 @@ final class GameViewModel {
     /// mistakes, completion, or persistence — it's all hypothetical.
     private func tapDigitInLayer(_ digit: UInt8, cell: Int) {
         guard let vi = viewedLayer, vi == layers.count - 1 else {
-            // Viewing a frozen state (the real game or a lower sheet).
+            // Viewing a frozen lower sheet — only the top one is editable.
             Haptics.warning()
             return
         }

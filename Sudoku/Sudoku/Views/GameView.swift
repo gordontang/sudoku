@@ -124,6 +124,12 @@ private struct GameContentView: View {
             VictoryView(vm: vm, onDone: exit)
                 .interactiveDismissDisabled()
         }
+        .alert("Play on the real board?", isPresented: $vm.showDiscardLayersPrompt) {
+            Button("Discard Layers & Play", role: .destructive) { vm.confirmDiscardLayersAndPlay() }
+            Button("Cancel", role: .cancel) { vm.cancelDiscardLayers() }
+        } message: {
+            Text("This move applies to the real game and discards your what-if layers.")
+        }
         .alert("Out of mistakes", isPresented: $vm.showFailure) {
             Button("Back to Home") { exit() }
         } message: {
