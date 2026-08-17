@@ -37,7 +37,8 @@ struct BoardView: View {
         col: Int,
         activeDigit: UInt8,
         covered: Set<Int>,
-        diff: (values: Grid, pencil: [CandidateSet])?
+        // SudokuKit qualification: SwiftUI also declares a `Grid` view.
+        diff: (values: SudokuKit.Grid, pencil: [CandidateSet])?
     ) -> some View {
         let index = row * 9 + col
         // Hide the position while paused — no free thinking time.
