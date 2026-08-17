@@ -15,32 +15,7 @@ struct BoardView: View {
             ForEach(0..<9, id: \.self) { row in
                 HStack(spacing: 0) {
                     ForEach(0..<9, id: \.self) { col in
-                        let index = row * 9 + col
-                        let value = vm.isPaused ? 0 : vm.displayValues.cells[index]
-                        let marks = vm.isPaused ? CandidateSet() : vm.displayPencil[index]
-                        CellView(
-                            identifier: "cell_\(row)_\(col)",
-                            // Hide the position while paused — no free thinking time.
-                            value: value,
-                            isGiven: vm.givens.cells[index] != 0,
-                            pencil: marks,
-                            highlightDigit: highlightSameDigits ? digit : 0,
-                            // Diffs vs the sheet underneath, so eliminations
-                            // stay visible (red) and new marks read as green.
-                            pencilRemoved: diff != nil && value == 0
-                                ? diff!.pencil[index].subtracting(marks)
-                                : CandidateSet(),
-                            pencilAdded: diff != nil
-                                ? marks.subtracting(diff!.pencil[index])
-                                : CandidateSet(),
-                            isTrial: diff != nil && value != 0 && vm.values.cells[index] == 0,
-                            background: background(for: index, activeDigit: digit, covered: covered),
-                            // Mistakes describe the real game, not a sheet.
-                            isMistake: !vm.isPaused && vm.viewedLayer == nil && vm.mistakes.contains(index),
-                            isSelected: vm.selected == index
-                        ) {
-                            vm.cellTouched(index)
-                        }
+                        cell(row: row, col: col, activeDigit: digit, covered: covered, diff: diff)
                     }
                 }
             }
@@ -52,6 +27,50 @@ struct BoardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Sudoku board")
+    }
+
+    /// One board cell. Broken out of `body` with plain `let` bindings — the
+    /// inlined version was a single expression too complex for the
+    /// type-checker.
+    private func cell(
+        row: Int,
+        col: Int,
+        activeDigit: UInt8,
+        covered: Set<Int>,
+        diff: (values: Grid, pencil: [CandidateSet])?
+    ) -> some View {
+        let index = row * 9 + col
+        // Hide the position while paused — no free thinking time.
+        let value: UInt8 = vm.isPaused ? 0 : vm.displayValues.cells[index]
+        let marks: CandidateSet = vm.isPaused ? CandidateSet() : vm.displayPencil[index]
+        // Diffs vs the sheet underneath, so eliminations stay visible (red)
+        // and new marks read as green.
+        var removed = CandidateSet()
+        var added = CandidateSet()
+        if let diff {
+            if value == 0 {
+                removed = diff.pencil[index].subtracting(marks)
+            }
+            added = marks.subtracting(diff.pencil[index])
+        }
+        let isTrial = diff != nil && value != 0 && vm.values.cells[index] == 0
+        // Mistakes describe the real game, not a sheet.
+        let isMistake = !vm.isPaused && vm.viewedLayer == nil && vm.mistakes.contains(index)
+        return CellView(
+            identifier: "cell_\(row)_\(col)",
+            value: value,
+            isGiven: vm.givens.cells[index] != 0,
+            pencil: marks,
+            highlightDigit: highlightSameDigits ? activeDigit : 0,
+            pencilAdded: added,
+            pencilRemoved: removed,
+            isTrial: isTrial,
+            background: background(for: index, activeDigit: activeDigit, covered: covered),
+            isMistake: isMistake,
+            isSelected: vm.selected == index
+        ) {
+            vm.cellTouched(index)
+        }
     }
 
     /// The digit the player is working with: the selected cell's value, the
