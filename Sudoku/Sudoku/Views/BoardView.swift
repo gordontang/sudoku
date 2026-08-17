@@ -110,13 +110,11 @@ struct BoardView: View {
         if index == vm.selected {
             return Theme.cellSelected
         }
-        if highlightSameDigits && activeDigit != 0 {
-            if vm.displayValues.cells[index] == activeDigit {
-                return Theme.cellSameDigit
-            }
-            if vm.displayValues.cells[index] == 0 && vm.displayPencil[index].contains(digit: activeDigit) {
-                return Theme.cellSameDigit
-            }
+        // Only placed digits tint the whole cell. A matching pencil mark is
+        // indicated by the chip on the mark itself — tinting those cells too
+        // (on top of coverage shading) drowned the board in highlights.
+        if highlightSameDigits && activeDigit != 0 && vm.displayValues.cells[index] == activeDigit {
+            return Theme.cellSameDigit
         }
         if let selected = vm.selected, highlightPeers, SudokuKit.Grid.peers[selected].contains(index) {
             return Theme.cellPeer
