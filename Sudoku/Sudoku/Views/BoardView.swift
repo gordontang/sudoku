@@ -74,14 +74,14 @@ struct BoardView: View {
         }
     }
 
-    /// The digit the player is working with: the selected cell's value, the
-    /// locked pad digit (number-first mode), or the digit last placed or
-    /// noted — so highlighting keeps working while penciling empty cells.
+    /// The digit the player is working with: the selected cell's value, or
+    /// the locked pad digit (number-first mode). An empty selection with no
+    /// lock means no highlight — deliberately, so it never feels sticky.
     private var activeDigit: UInt8 {
         if let selected = vm.selected, vm.displayValues.cells[selected] != 0 {
             return vm.displayValues.cells[selected]
         }
-        return vm.lockedDigit ?? vm.lastDigit ?? 0
+        return vm.lockedDigit ?? 0
     }
 
     /// Every cell in a row or column already containing the digit — the places
@@ -137,7 +137,8 @@ private struct CellView: View {
     /// Marks present here but not in the sheet underneath (chain view).
     let pencilAdded: CandidateSet
     /// Marks eliminated relative to the sheet underneath — still drawn,
-    /// faded red, so the chain's eliminations stay visible.
+    /// struck through and faded, so the chain's eliminations stay visible
+    /// without reading as errors.
     let pencilRemoved: CandidateSet
     /// A hypothetical digit placed in a chain layer, not in the real game.
     let isTrial: Bool
@@ -212,6 +213,7 @@ private struct CellView: View {
                         let isForced = present && pencil.count == 1 && !pencilRemoved.isEmpty
                         Text(present || removed ? "\(digit)" : " ")
                             .font(.system(size: 9, weight: isHighlighted || isForced ? .bold : .regular))
+                            .strikethrough(removed)
                             .minimumScaleFactor(0.5)
                             .foregroundStyle(markColor(
                                 digit: digit, present: present, removed: removed,
