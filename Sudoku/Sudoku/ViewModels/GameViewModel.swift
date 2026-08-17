@@ -33,6 +33,10 @@ final class GameViewModel {
     var scoreFlash: ScoreFlash?
     /// Number-first mode: a long-pressed pad digit; tapping cells places it.
     private(set) var lockedDigit: UInt8?
+    /// The digit most recently placed or noted. Drives same-number
+    /// highlighting when the selection itself doesn't name a digit (e.g.
+    /// penciling into empty cells), so patterns stay visible while noting.
+    private(set) var lastDigit: UInt8?
     /// Cells of a just-completed row/column/box, briefly highlighted.
     private(set) var flashCells: Set<Int> = []
     private var flashID = UUID()
@@ -174,6 +178,7 @@ final class GameViewModel {
         undoStack = []
         selected = nil
         lockedDigit = nil
+        lastDigit = nil
         hintMessage = nil
         scoreFlash = nil
         flashCells = []
@@ -215,6 +220,7 @@ final class GameViewModel {
                 Haptics.warning()
                 return
             }
+            lastDigit = digit
             undoStack.append(Move(valueChanges: [], pencilChanges: [(cell, pencil[cell])]))
             pencil[cell].toggle(digit: digit)
             Haptics.light()
@@ -222,6 +228,7 @@ final class GameViewModel {
             return
         }
 
+        lastDigit = digit
         let old = values.cells[cell]
         if old == digit {
             // Tapping the digit already in the cell clears it.
@@ -344,6 +351,7 @@ final class GameViewModel {
         selected = cell
         var move = Move(valueChanges: [(cell, values.cells[cell])], pencilChanges: [(cell, pencil[cell])])
         let digit = solution.cells[cell]
+        lastDigit = digit
         if AppSettings.autoClearPencil {
             for p in Grid.peers[cell] where pencil[p].contains(digit: digit) {
                 move.pencilChanges.append((p, pencil[p]))

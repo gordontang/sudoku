@@ -41,13 +41,14 @@ struct BoardView: View {
         .accessibilityLabel("Sudoku board")
     }
 
-    /// The digit the player is working with: the selected cell's value, or in
-    /// number-first mode the locked pad digit.
+    /// The digit the player is working with: the selected cell's value, the
+    /// locked pad digit (number-first mode), or the digit last placed or
+    /// noted — so highlighting keeps working while penciling empty cells.
     private var activeDigit: UInt8 {
         if let selected = vm.selected, vm.values.cells[selected] != 0 {
             return vm.values.cells[selected]
         }
-        return vm.lockedDigit ?? 0
+        return vm.lockedDigit ?? vm.lastDigit ?? 0
     }
 
     /// Every cell in a row or column already containing the digit — the places
