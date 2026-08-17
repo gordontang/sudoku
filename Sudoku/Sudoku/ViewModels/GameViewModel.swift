@@ -237,7 +237,7 @@ final class GameViewModel {
         viewedLayer = layers.count - 1
         if layers.count == 1 {
             // First sheet: explain the sandbox once per chain session.
-            hintMessage = "What-if sheet added — moves here are practice and never touch the real game. Switch views with the chips above the board; ✕ discards all sheets."
+            hintMessage = "What-if sheet added — moves here are practice and never touch the real game. Switch views with the chips above the board; the trash button removes sheets."
         }
         Haptics.light()
     }

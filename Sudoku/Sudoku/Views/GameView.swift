@@ -70,6 +70,7 @@ private struct GameContentView: View {
     @Bindable var vm: GameViewModel
     let exit: () -> Void
     @State private var showGuide = false
+    @State private var showLayerDeleteConfirm = false
     @AppStorage(SettingsKeys.showLayerEliminations) private var showLayerEliminations = true
     @AppStorage(SettingsKeys.mistakeMode) private var mistakeModeRaw = MistakeMode.instantSolution.rawValue
     @AppStorage(SettingsKeys.errorLimitEnabled) private var errorLimitEnabled = false
@@ -257,29 +258,40 @@ private struct GameContentView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(showLayerEliminations ? "Hide eliminated notes" : "Show eliminated notes")
                 .accessibilityIdentifier("layer_strikes")
+                // One trash entry point; the dialog names the destructive
+                // choices explicitly instead of two bare icons.
                 Button {
-                    vm.dropLayer()
+                    showLayerDeleteConfirm = true
                 } label: {
-                    Image(systemName: "minus.circle")
+                    Image(systemName: "trash")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Remove this layer")
-                .accessibilityIdentifier("layer_drop")
-                Button {
-                    vm.clearLayers()
-                } label: {
-                    Image(systemName: "xmark.circle")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+                .accessibilityLabel("Delete layers")
+                .accessibilityIdentifier("layer_trash")
+                .confirmationDialog(
+                    "Layers are practice sheets and can't be recovered.",
+                    isPresented: $showLayerDeleteConfirm,
+                    titleVisibility: .visible
+                ) {
+                    if vm.layers.count > 1 {
+                        Button("Remove \(viewedLayerName)", role: .destructive) { vm.dropLayer() }
+                        Button("Discard All Layers", role: .destructive) { vm.clearLayers() }
+                    } else {
+                        Button("Discard Layer", role: .destructive) { vm.clearLayers() }
+                    }
+                    Button("Cancel", role: .cancel) {}
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Discard all layers")
-                .accessibilityIdentifier("layer_clear")
             }
             .padding(.horizontal, 16)
         }
+    }
+
+    /// The chip name of the sheet the trash button would remove: the viewed
+    /// one, or the newest when viewing the game.
+    private var viewedLayerName: String {
+        "L\((vm.viewedLayer ?? vm.layers.count - 1) + 1)"
     }
 
     private func layerChip(
