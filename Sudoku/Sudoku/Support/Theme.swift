@@ -40,7 +40,6 @@ enum Theme {
     static let trialText = Color(.systemPurple)
     static let pencilAddedText = Color(.systemGreen)
     static let pencilRemovedText = Color.secondary.opacity(0.45)
-    static let pencilForcedText = Color(.systemPurple)
     static let gridLineMajor = Color.primary.opacity(0.8)
     static let gridLineMinor = Color.primary.opacity(0.22)
 }

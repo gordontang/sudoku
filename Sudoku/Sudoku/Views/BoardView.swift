@@ -208,16 +208,13 @@ private struct CellView: View {
                         let present = pencil.contains(digit: digit)
                         let removed = !present && pencilRemoved.contains(digit: digit)
                         let isHighlighted = present && digit == highlightDigit
-                        // A cell reduced to one candidate by this sheet's
-                        // eliminations is a forced placement — call it out.
-                        let isForced = present && pencil.count == 1 && !pencilRemoved.isEmpty
                         Text(present || removed ? "\(digit)" : " ")
-                            .font(.system(size: 9, weight: isHighlighted || isForced ? .bold : .regular))
+                            .font(.system(size: 9, weight: isHighlighted ? .bold : .regular))
                             .strikethrough(removed)
                             .minimumScaleFactor(0.5)
                             .foregroundStyle(markColor(
                                 digit: digit, present: present, removed: removed,
-                                isHighlighted: isHighlighted, isForced: isForced
+                                isHighlighted: isHighlighted
                             ))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             // A filled chip so the matching note is findable at
@@ -234,12 +231,14 @@ private struct CellView: View {
         .padding(1)
     }
 
+    // Only the player's own changes get styling — added marks green, removed
+    // marks struck through. No "forced cell" emphasis: inside a hypothesis
+    // the app shouldn't suggest which digits are right.
     private func markColor(
-        digit: UInt8, present: Bool, removed: Bool, isHighlighted: Bool, isForced: Bool
+        digit: UInt8, present: Bool, removed: Bool, isHighlighted: Bool
     ) -> Color {
         if isHighlighted { return .white }
         if removed { return Theme.pencilRemovedText }
-        if isForced { return Theme.pencilForcedText }
         if pencilAdded.contains(digit: digit) { return Theme.pencilAddedText }
         return Theme.pencilText
     }
