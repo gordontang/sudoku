@@ -6,6 +6,7 @@ struct BoardView: View {
     @AppStorage(SettingsKeys.highlightPeers) private var highlightPeers = true
     @AppStorage(SettingsKeys.highlightSameDigits) private var highlightSameDigits = true
     @AppStorage(SettingsKeys.highlightCoverage) private var highlightCoverage = true
+    @AppStorage(SettingsKeys.showLayerEliminations) private var showLayerEliminations = true
 
     var body: some View {
         let digit = vm.isPaused ? 0 : activeDigit
@@ -49,7 +50,7 @@ struct BoardView: View {
         var removed = CandidateSet()
         var added = CandidateSet()
         if let diff {
-            if value == 0 {
+            if value == 0 && showLayerEliminations {
                 removed = diff.pencil[index].subtracting(marks)
             }
             added = marks.subtracting(diff.pencil[index])
@@ -208,7 +209,6 @@ private struct CellView: View {
                         let isHighlighted = present && digit == highlightDigit
                         Text(present || removed ? "\(digit)" : " ")
                             .font(.system(size: 9, weight: isHighlighted ? .bold : .regular))
-                            .strikethrough(removed)
                             .minimumScaleFactor(0.5)
                             .foregroundStyle(markColor(
                                 digit: digit, present: present, removed: removed,
@@ -222,6 +222,15 @@ private struct CellView: View {
                                     .fill(isHighlighted ? Color.accentColor : Color.clear)
                                     .padding(0.5)
                             )
+                            // Diagonal slash for eliminated notes — a text
+                            // strikethrough is invisible at this size.
+                            .overlay {
+                                if removed {
+                                    DiagonalStrike()
+                                        .stroke(Theme.pencilStrike, lineWidth: 1)
+                                        .padding(2.5)
+                                }
+                            }
                     }
                 }
             }
@@ -253,6 +262,16 @@ private struct CellView: View {
             if isMistake { label += ", incorrect" }
         }
         return label
+    }
+}
+
+/// Bottom-left to top-right slash over an eliminated pencil mark.
+private struct DiagonalStrike: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        return path
     }
 }
 

@@ -70,6 +70,7 @@ private struct GameContentView: View {
     @Bindable var vm: GameViewModel
     let exit: () -> Void
     @State private var showGuide = false
+    @AppStorage(SettingsKeys.showLayerEliminations) private var showLayerEliminations = true
     @AppStorage(SettingsKeys.mistakeMode) private var mistakeModeRaw = MistakeMode.instantSolution.rawValue
     @AppStorage(SettingsKeys.errorLimitEnabled) private var errorLimitEnabled = false
     @AppStorage(SettingsKeys.showTimer) private var showTimer = true
@@ -245,6 +246,17 @@ private struct GameContentView: View {
                         .accessibilityLabel("Read-only — edits go to the top layer")
                 }
                 Spacer()
+                // Struck-out notes can get noisy — let the player hide them.
+                Button {
+                    showLayerEliminations.toggle()
+                } label: {
+                    Image(systemName: "strikethrough")
+                        .font(.title3)
+                        .foregroundStyle(showLayerEliminations ? Color.accentColor : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(showLayerEliminations ? "Hide eliminated notes" : "Show eliminated notes")
+                .accessibilityIdentifier("layer_strikes")
                 Button {
                     vm.dropTopLayer()
                 } label: {

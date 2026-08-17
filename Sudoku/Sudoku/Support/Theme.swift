@@ -40,6 +40,9 @@ enum Theme {
     static let trialText = Color(.systemPurple)
     static let pencilAddedText = Color(.systemGreen)
     static let pencilRemovedText = Color.secondary.opacity(0.45)
+    /// The diagonal slash over an eliminated note — stronger than the faded
+    /// digit so the elimination reads at pencil-mark size.
+    static let pencilStrike = Color.secondary
     static let gridLineMajor = Color.primary.opacity(0.8)
     static let gridLineMinor = Color.primary.opacity(0.22)
 }
