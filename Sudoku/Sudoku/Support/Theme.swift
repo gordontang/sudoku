@@ -33,6 +33,12 @@ enum Theme {
     static let playerText = Color.accentColor
     static let mistakeText = Color.red
     static let pencilText = Color.secondary
+    // Chain-layer diffs: trial digits and marks added/removed/forced relative
+    // to the sheet underneath.
+    static let trialText = Color(.systemOrange)
+    static let pencilAddedText = Color(.systemGreen)
+    static let pencilRemovedText = Color(.systemRed).opacity(0.55)
+    static let pencilForcedText = Color(.systemOrange)
     static let gridLineMajor = Color.primary.opacity(0.8)
     static let gridLineMinor = Color.primary.opacity(0.22)
 }

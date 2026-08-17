@@ -10,20 +10,33 @@ struct BoardView: View {
     var body: some View {
         let digit = vm.isPaused ? 0 : activeDigit
         let covered = coveredCells(by: digit)
+        let diff = vm.isPaused ? nil : vm.diffBaseState
         VStack(spacing: 0) {
             ForEach(0..<9, id: \.self) { row in
                 HStack(spacing: 0) {
                     ForEach(0..<9, id: \.self) { col in
                         let index = row * 9 + col
+                        let value = vm.isPaused ? 0 : vm.displayValues.cells[index]
+                        let marks = vm.isPaused ? CandidateSet() : vm.displayPencil[index]
                         CellView(
                             identifier: "cell_\(row)_\(col)",
                             // Hide the position while paused — no free thinking time.
-                            value: vm.isPaused ? 0 : vm.values.cells[index],
+                            value: value,
                             isGiven: vm.givens.cells[index] != 0,
-                            pencil: vm.isPaused ? CandidateSet() : vm.pencil[index],
+                            pencil: marks,
                             highlightDigit: highlightSameDigits ? digit : 0,
+                            // Diffs vs the sheet underneath, so eliminations
+                            // stay visible (red) and new marks read as green.
+                            pencilRemoved: diff != nil && value == 0
+                                ? diff!.pencil[index].subtracting(marks)
+                                : CandidateSet(),
+                            pencilAdded: diff != nil
+                                ? marks.subtracting(diff!.pencil[index])
+                                : CandidateSet(),
+                            isTrial: diff != nil && value != 0 && vm.values.cells[index] == 0,
                             background: background(for: index, activeDigit: digit, covered: covered),
-                            isMistake: !vm.isPaused && vm.mistakes.contains(index),
+                            // Mistakes describe the real game, not a sheet.
+                            isMistake: !vm.isPaused && vm.viewedLayer == nil && vm.mistakes.contains(index),
                             isSelected: vm.selected == index
                         ) {
                             vm.cellTouched(index)
@@ -45,8 +58,8 @@ struct BoardView: View {
     /// locked pad digit (number-first mode), or the digit last placed or
     /// noted — so highlighting keeps working while penciling empty cells.
     private var activeDigit: UInt8 {
-        if let selected = vm.selected, vm.values.cells[selected] != 0 {
-            return vm.values.cells[selected]
+        if let selected = vm.selected, vm.displayValues.cells[selected] != 0 {
+            return vm.displayValues.cells[selected]
         }
         return vm.lockedDigit ?? vm.lastDigit ?? 0
     }
@@ -56,7 +69,7 @@ struct BoardView: View {
     private func coveredCells(by digit: UInt8) -> Set<Int> {
         guard highlightCoverage, digit != 0 else { return [] }
         var covered: Set<Int> = []
-        for i in 0..<81 where vm.values.cells[i] == digit {
+        for i in 0..<81 where vm.displayValues.cells[i] == digit {
             let row = i / 9, col = i % 9
             for k in 0..<9 {
                 covered.insert(row * 9 + k)
@@ -71,17 +84,17 @@ struct BoardView: View {
         if vm.flashCells.contains(index) {
             return Theme.cellSameDigit
         }
-        if vm.mistakes.contains(index) {
+        if vm.viewedLayer == nil && vm.mistakes.contains(index) {
             return Theme.cellMistake
         }
         if index == vm.selected {
             return Theme.cellSelected
         }
         if highlightSameDigits && activeDigit != 0 {
-            if vm.values.cells[index] == activeDigit {
+            if vm.displayValues.cells[index] == activeDigit {
                 return Theme.cellSameDigit
             }
-            if vm.values.cells[index] == 0 && vm.pencil[index].contains(digit: activeDigit) {
+            if vm.displayValues.cells[index] == 0 && vm.displayPencil[index].contains(digit: activeDigit) {
                 return Theme.cellSameDigit
             }
         }
@@ -101,6 +114,13 @@ private struct CellView: View {
     let isGiven: Bool
     let pencil: CandidateSet
     let highlightDigit: UInt8
+    /// Marks present here but not in the sheet underneath (chain view).
+    let pencilAdded: CandidateSet
+    /// Marks eliminated relative to the sheet underneath — still drawn,
+    /// faded red, so the chain's eliminations stay visible.
+    let pencilRemoved: CandidateSet
+    /// A hypothetical digit placed in a chain layer, not in the real game.
+    let isTrial: Bool
     let background: Color
     let isMistake: Bool
     let isSelected: Bool
@@ -116,7 +136,7 @@ private struct CellView: View {
                         .font(.title3.weight(isGiven ? .bold : .regular))
                         .minimumScaleFactor(0.4)
                         .foregroundStyle(textColor)
-                } else if !pencil.isEmpty {
+                } else if !pencil.isEmpty || !pencilRemoved.isEmpty {
                     pencilGrid
                 }
                 if isMistake {
@@ -154,6 +174,7 @@ private struct CellView: View {
 
     private var textColor: Color {
         if isMistake { return Theme.mistakeText }
+        if isTrial { return Theme.trialText }
         return isGiven ? Theme.givenText : Theme.playerText
     }
 
@@ -163,11 +184,19 @@ private struct CellView: View {
                 HStack(spacing: 0) {
                     ForEach(0..<3, id: \.self) { c in
                         let digit = UInt8(r * 3 + c + 1)
-                        let isHighlighted = digit == highlightDigit && pencil.contains(digit: digit)
-                        Text(pencil.contains(digit: digit) ? "\(digit)" : " ")
-                            .font(.system(size: 9, weight: isHighlighted ? .bold : .regular))
+                        let present = pencil.contains(digit: digit)
+                        let removed = !present && pencilRemoved.contains(digit: digit)
+                        let isHighlighted = present && digit == highlightDigit
+                        // A cell reduced to one candidate by this sheet's
+                        // eliminations is a forced placement — call it out.
+                        let isForced = present && pencil.count == 1 && !pencilRemoved.isEmpty
+                        Text(present || removed ? "\(digit)" : " ")
+                            .font(.system(size: 9, weight: isHighlighted || isForced ? .bold : .regular))
                             .minimumScaleFactor(0.5)
-                            .foregroundStyle(isHighlighted ? .white : Theme.pencilText)
+                            .foregroundStyle(markColor(
+                                digit: digit, present: present, removed: removed,
+                                isHighlighted: isHighlighted, isForced: isForced
+                            ))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             // A filled chip so the matching note is findable at
                             // a glance, not just a bolder glyph.
@@ -181,6 +210,16 @@ private struct CellView: View {
             }
         }
         .padding(1)
+    }
+
+    private func markColor(
+        digit: UInt8, present: Bool, removed: Bool, isHighlighted: Bool, isForced: Bool
+    ) -> Color {
+        if isHighlighted { return .white }
+        if removed { return Theme.pencilRemovedText }
+        if isForced { return Theme.pencilForcedText }
+        if pencilAdded.contains(digit: digit) { return Theme.pencilAddedText }
+        return Theme.pencilText
     }
 
     private var accessibilityText: String {

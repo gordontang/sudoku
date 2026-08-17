@@ -82,6 +82,7 @@ private struct GameContentView: View {
         VStack(spacing: 12) {
             header
             hintBanner
+            layerBar
             BoardView(vm: vm)
                 .padding(.horizontal, 8)
             GameToolbar(vm: vm, showCheck: mistakeMode == .onDemand)
@@ -201,6 +202,67 @@ private struct GameContentView: View {
         }
     }
 
+    /// Chain-layer strip: switch between the real game and what-if sheets,
+    /// peel the top sheet, or discard them all.
+    @ViewBuilder
+    private var layerBar: some View {
+        if !vm.layers.isEmpty {
+            HStack(spacing: 8) {
+                layerChip("Game", isActive: vm.viewedLayer == nil, id: "layer_game") {
+                    vm.viewLayer(nil)
+                }
+                ForEach(vm.layers.indices, id: \.self) { i in
+                    layerChip("L\(i + 1)", isActive: vm.viewedLayer == i, id: "layer_\(i + 1)") {
+                        vm.viewLayer(i)
+                    }
+                }
+                if !vm.canEditViewedState {
+                    Image(systemName: "lock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Read-only — edits go to the top layer")
+                }
+                Spacer()
+                Button {
+                    vm.dropTopLayer()
+                } label: {
+                    Image(systemName: "minus.circle")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove top layer")
+                .accessibilityIdentifier("layer_drop")
+                Button {
+                    vm.clearLayers()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Discard all layers")
+                .accessibilityIdentifier("layer_clear")
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func layerChip(
+        _ title: String, isActive: Bool, id: String, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(isActive ? Color.accentColor : Color(.secondarySystemBackground)))
+                .foregroundStyle(isActive ? .white : .primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+
     @ViewBuilder
     private var hintBanner: some View {
         if let message = vm.hintMessage {
@@ -291,11 +353,19 @@ private struct GameToolbar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            toolbarButton("Undo", systemImage: "arrow.uturn.backward", disabled: vm.undoStack.isEmpty) {
+            toolbarButton("Undo", systemImage: "arrow.uturn.backward", disabled: !vm.canUndo) {
                 vm.undo()
             }
             toolbarButton("Erase", systemImage: "eraser") {
                 vm.erase()
+            }
+            // Chain layers: what-if sheets stacked on the real game.
+            toolbarButton(
+                "Layer",
+                systemImage: "square.3.layers.3d",
+                disabled: vm.layers.count >= GameViewModel.layerLimit
+            ) {
+                vm.addLayer()
             }
             // Pencil: tap toggles mode, long-press fills all candidates.
             VStack(spacing: 4) {

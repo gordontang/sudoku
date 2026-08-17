@@ -10,6 +10,15 @@ struct Move {
     var pencilChanges: [(cell: Int, old: CandidateSet)]
 }
 
+/// A chain-analysis sheet: an editable copy of board state layered on top of
+/// the real game, used to follow "what if this cell were X" chains without
+/// touching real progress, mistakes, or score.
+struct ChainLayer {
+    var values: Grid
+    var pencil: [CandidateSet]
+    var undoStack: [Move] = []
+}
+
 @MainActor
 @Observable
 final class GameViewModel {
@@ -37,6 +46,13 @@ final class GameViewModel {
     /// highlighting when the selection itself doesn't name a digit (e.g.
     /// penciling into empty cells), so patterns stay visible while noting.
     private(set) var lastDigit: UInt8?
+    /// What-if sheets stacked on the real game for following chains. Each
+    /// layer is a full editable copy of board state; the real game and lower
+    /// layers stay frozen underneath. Transient — not persisted.
+    private(set) var layers: [ChainLayer] = []
+    /// Which state the board shows: nil = the real game. Only the top layer
+    /// accepts edits while any layers exist.
+    private(set) var viewedLayer: Int?
     /// Cells of a just-completed row/column/box, briefly highlighted.
     private(set) var flashCells: Set<Int> = []
     private var flashID = UUID()
@@ -179,6 +195,8 @@ final class GameViewModel {
         selected = nil
         lockedDigit = nil
         lastDigit = nil
+        layers = []
+        viewedLayer = nil
         hintMessage = nil
         scoreFlash = nil
         flashCells = []
@@ -186,6 +204,67 @@ final class GameViewModel {
         runningSince = Date()
         isPaused = false
         save()
+    }
+
+    // MARK: - Chain layers
+
+    static let layerLimit = 5
+
+    /// The board state currently displayed (viewed layer, or the real game).
+    var displayValues: Grid {
+        viewedLayer.map { layers[$0].values } ?? values
+    }
+
+    var displayPencil: [CandidateSet] {
+        viewedLayer.map { layers[$0].pencil } ?? pencil
+    }
+
+    /// The state directly beneath the viewed layer — what diffs compare
+    /// against. Nil when viewing the real game.
+    var diffBaseState: (values: Grid, pencil: [CandidateSet])? {
+        guard let vi = viewedLayer else { return nil }
+        return vi == 0 ? (values, pencil) : (layers[vi - 1].values, layers[vi - 1].pencil)
+    }
+
+    /// Whether the currently viewed state accepts edits. While layers exist,
+    /// only the top sheet is editable; the real game resumes once cleared.
+    var canEditViewedState: Bool {
+        layers.isEmpty || viewedLayer == layers.count - 1
+    }
+
+    /// Add a new sheet copying the top of the stack (or the real game).
+    func addLayer() {
+        guard !isGameOver, !isPaused, layers.count < Self.layerLimit else { return }
+        let top = layers.last
+        layers.append(ChainLayer(values: top?.values ?? values, pencil: top?.pencil ?? pencil))
+        viewedLayer = layers.count - 1
+        Haptics.light()
+    }
+
+    /// Peel off the top sheet (a refuted chain step).
+    func dropTopLayer() {
+        guard !layers.isEmpty else { return }
+        layers.removeLast()
+        if layers.isEmpty {
+            viewedLayer = nil
+        } else if let vi = viewedLayer {
+            viewedLayer = min(vi, layers.count - 1)
+        }
+        Haptics.light()
+    }
+
+    /// Discard all sheets and return to the real game.
+    func clearLayers() {
+        guard !layers.isEmpty else { return }
+        layers = []
+        viewedLayer = nil
+        Haptics.light()
+    }
+
+    /// Switch which state the board shows (nil = the real game).
+    func viewLayer(_ index: Int?) {
+        guard index == nil || (0..<layers.count).contains(index!) else { return }
+        viewedLayer = index
     }
 
     // MARK: - Input
@@ -210,6 +289,11 @@ final class GameViewModel {
 
     func tapDigit(_ digit: UInt8) {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
+
+        if !layers.isEmpty {
+            tapDigitInLayer(digit, cell: cell)
+            return
+        }
 
         if pencilMode {
             guard values.cells[cell] == 0 else { return }
@@ -265,6 +349,47 @@ final class GameViewModel {
         }
     }
 
+    /// Chain-mode input: edits go to the top sheet only, with no score,
+    /// mistakes, completion, or persistence — it's all hypothetical.
+    private func tapDigitInLayer(_ digit: UInt8, cell: Int) {
+        guard let vi = viewedLayer, vi == layers.count - 1 else {
+            // Viewing a frozen state (the real game or a lower sheet).
+            Haptics.warning()
+            return
+        }
+        lastDigit = digit
+        var layer = layers[vi]
+        if pencilMode {
+            guard layer.values.cells[cell] == 0 else { return }
+            if !layer.pencil[cell].contains(digit: digit)
+                && !layer.values.candidateSet(at: cell).contains(digit: digit) {
+                Haptics.warning()
+                return
+            }
+            layer.undoStack.append(Move(valueChanges: [], pencilChanges: [(cell, layer.pencil[cell])]))
+            layer.pencil[cell].toggle(digit: digit)
+        } else {
+            let old = layer.values.cells[cell]
+            if old == digit {
+                layer.undoStack.append(Move(valueChanges: [(cell, old)], pencilChanges: []))
+                layer.values.cells[cell] = 0
+            } else {
+                var move = Move(valueChanges: [(cell, old)], pencilChanges: [(cell, layer.pencil[cell])])
+                // Always propagate a trial digit into peers' candidates —
+                // those eliminations are the chain step being followed.
+                for p in Grid.peers[cell] where layer.pencil[p].contains(digit: digit) {
+                    move.pencilChanges.append((p, layer.pencil[p]))
+                    layer.pencil[p].remove(digit: digit)
+                }
+                layer.pencil[cell] = CandidateSet()
+                layer.values.cells[cell] = digit
+                layer.undoStack.append(move)
+            }
+        }
+        layers[vi] = layer
+        Haptics.light()
+    }
+
     private func award(_ points: Int) {
         score += points
         scoreFlash = ScoreFlash(amount: points, id: UUID())
@@ -293,6 +418,22 @@ final class GameViewModel {
 
     func erase() {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
+        if !layers.isEmpty {
+            guard let vi = viewedLayer, vi == layers.count - 1 else {
+                Haptics.warning()
+                return
+            }
+            var layer = layers[vi]
+            guard layer.values.cells[cell] != 0 || !layer.pencil[cell].isEmpty else { return }
+            layer.undoStack.append(Move(
+                valueChanges: [(cell, layer.values.cells[cell])],
+                pencilChanges: [(cell, layer.pencil[cell])]
+            ))
+            layer.values.cells[cell] = 0
+            layer.pencil[cell] = CandidateSet()
+            layers[vi] = layer
+            return
+        }
         guard values.cells[cell] != 0 || !pencil[cell].isEmpty else { return }
         undoStack.append(Move(valueChanges: [(cell, values.cells[cell])], pencilChanges: [(cell, pencil[cell])]))
         values.cells[cell] = 0
@@ -301,8 +442,28 @@ final class GameViewModel {
         save()
     }
 
+    /// Whether the undo button applies to the state being viewed.
+    var canUndo: Bool {
+        if layers.isEmpty { return !undoStack.isEmpty }
+        return viewedLayer == layers.count - 1 && !(layers.last?.undoStack.isEmpty ?? true)
+    }
+
     func undo() {
-        guard !isGameOver, !isPaused, let move = undoStack.popLast() else { return }
+        guard !isGameOver, !isPaused else { return }
+        if !layers.isEmpty {
+            guard let vi = viewedLayer, vi == layers.count - 1, !layers[vi].undoStack.isEmpty else { return }
+            var layer = layers[vi]
+            let move = layer.undoStack.removeLast()
+            for (cell, old) in move.valueChanges {
+                layer.values.cells[cell] = old
+            }
+            for (cell, old) in move.pencilChanges {
+                layer.pencil[cell] = old
+            }
+            layers[vi] = layer
+            return
+        }
+        guard let move = undoStack.popLast() else { return }
         for (cell, old) in move.valueChanges {
             values.cells[cell] = old
         }
@@ -316,6 +477,26 @@ final class GameViewModel {
     /// Fill every empty cell's pencil marks with its currently-legal candidates.
     func fillAllCandidates() {
         guard !isGameOver, !isPaused else { return }
+        if !layers.isEmpty {
+            guard let vi = viewedLayer, vi == layers.count - 1 else {
+                Haptics.warning()
+                return
+            }
+            var layer = layers[vi]
+            var move = Move(valueChanges: [], pencilChanges: [])
+            for i in 0..<81 where layer.values.cells[i] == 0 {
+                let set = layer.values.candidateSet(at: i)
+                if layer.pencil[i] != set {
+                    move.pencilChanges.append((i, layer.pencil[i]))
+                    layer.pencil[i] = set
+                }
+            }
+            guard !move.pencilChanges.isEmpty else { return }
+            layer.undoStack.append(move)
+            layers[vi] = layer
+            Haptics.light()
+            return
+        }
         var move = Move(valueChanges: [], pencilChanges: [])
         for i in 0..<81 where values.cells[i] == 0 {
             let set = values.candidateSet(at: i)
@@ -333,7 +514,9 @@ final class GameViewModel {
     // MARK: - Hints
 
     func hint() {
-        guard !isGameOver, !isPaused else { return }
+        // No hints in chain mode — they reference the real solution and would
+        // mislead inside a hypothetical position.
+        guard !isGameOver, !isPaused, layers.isEmpty else { return }
         hintsUsed += 1
         let wrongCells = (0..<81).filter {
             givens.cells[$0] == 0 && values.cells[$0] != 0 && values.cells[$0] != solution.cells[$0]
@@ -383,7 +566,7 @@ final class GameViewModel {
     /// rest falls to naked and hidden singles alone — a linear finish with no
     /// advanced technique required.
     var canAutoComplete: Bool {
-        guard !isGameOver else { return false }
+        guard !isGameOver, layers.isEmpty else { return false }
         var empty = 0
         for i in 0..<81 {
             if values.cells[i] == 0 {
@@ -466,7 +649,7 @@ final class GameViewModel {
 
     /// On-demand check: flag all wrong cells, counting newly-found ones.
     func checkNow() {
-        guard !isGameOver, !isPaused else { return }
+        guard !isGameOver, !isPaused, layers.isEmpty else { return }
         let wrong = Set((0..<81).filter {
             values.cells[$0] != 0 && givens.cells[$0] == 0 && values.cells[$0] != solution.cells[$0]
         })
@@ -565,9 +748,10 @@ final class GameViewModel {
 
     // MARK: - Derived UI state
 
-    /// How many of a digit remain to be placed (9 minus placements on board).
+    /// How many of a digit remain to be placed (9 minus placements on the
+    /// displayed board, so pad counts track the viewed chain sheet too).
     func remaining(of digit: UInt8) -> Int {
-        max(0, 9 - values.cells.count { $0 == digit })
+        max(0, 9 - displayValues.cells.count { $0 == digit })
     }
 
     var progressText: String {
