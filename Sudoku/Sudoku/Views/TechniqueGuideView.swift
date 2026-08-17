@@ -479,13 +479,13 @@ enum TechniqueContent {
         When patterns run out, follow the logic forward: assume a candidate, \
         propagate the consequences, and see what breaks or repeats. This is \
         exactly what the Layer button is for — a translucent sheet over the \
-        real game where trial moves are sandboxed and every elimination is \
-        color-coded (orange = trial digit, red = eliminated note, green = new \
+        real game where trial moves are sandboxed and every change is marked \
+        (orange = trial digit, struck-through = eliminated note, green = new \
         note, bold orange = a forced cell).
         """,
         steps: [
             "Pick a promising cell — ideally two candidates, in a crowded region. Add a Layer.",
-            "Place one candidate as a trial digit. Its eliminations show in red; follow any forced cells (bold orange) with more trial placements.",
+            "Place one candidate as a trial digit. Its eliminations show struck through; follow any forced cells (bold orange) with more trial placements.",
             "Contradiction (a cell with no candidates, or a unit that can't fit a digit)? The assumption was false — the other candidate is real. Clear the layers and play it in the real game.",
             "No contradiction? Add another Layer and test the other candidate. Any cell that resolves the same way in both branches is certain either way — play that.",
             "Flip between the Game and layer chips to compare branches; peel sheets with the minus button as you backtrack.",

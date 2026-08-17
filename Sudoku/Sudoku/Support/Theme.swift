@@ -34,10 +34,11 @@ enum Theme {
     static let mistakeText = Color.red
     static let pencilText = Color.secondary
     // Chain-layer diffs: trial digits and marks added/removed/forced relative
-    // to the sheet underneath.
+    // to the sheet underneath. Removed marks fade and strike through rather
+    // than turn red — an elimination is progress, not an error.
     static let trialText = Color(.systemOrange)
     static let pencilAddedText = Color(.systemGreen)
-    static let pencilRemovedText = Color(.systemRed).opacity(0.55)
+    static let pencilRemovedText = Color.secondary.opacity(0.45)
     static let pencilForcedText = Color(.systemOrange)
     static let gridLineMajor = Color.primary.opacity(0.8)
     static let gridLineMinor = Color.primary.opacity(0.22)
