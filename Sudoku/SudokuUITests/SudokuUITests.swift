@@ -93,6 +93,19 @@ final class SudokuUITests: XCTestCase {
         XCTAssertTrue(cell.label.contains("contains 8"), "got: \(cell.label)")
     }
 
+    func testTechniqueGuideOpensDuringGame() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        app.buttons["guide"].tap()
+        let topic = app.staticTexts["Naked Single"]
+        XCTAssertTrue(topic.waitForExistence(timeout: 5), "Guide list should appear")
+        topic.tap()
+        XCTAssertTrue(app.staticTexts["How to use it"].waitForExistence(timeout: 5), "Topic detail should appear")
+        app.navigationBars.buttons.firstMatch.tap() // back to the list
+        app.buttons["guide_done"].tap()
+        XCTAssertTrue(cell.waitForExistence(timeout: 5), "Game should still be active after closing the guide")
+    }
+
     func testEraseClearsCell() {
         let app = launchApp()
         let cell = startEasyGame(app)

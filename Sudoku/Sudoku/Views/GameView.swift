@@ -69,6 +69,7 @@ struct GameView: View {
 private struct GameContentView: View {
     @Bindable var vm: GameViewModel
     let exit: () -> Void
+    @State private var showGuide = false
     @AppStorage(SettingsKeys.mistakeMode) private var mistakeModeRaw = MistakeMode.instantSolution.rawValue
     @AppStorage(SettingsKeys.errorLimitEnabled) private var errorLimitEnabled = false
     @AppStorage(SettingsKeys.showTimer) private var showTimer = true
@@ -93,6 +94,21 @@ private struct GameContentView: View {
         .padding(.top, 4)
         .navigationTitle(vm.difficulty.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showGuide = true
+                } label: {
+                    Label("Techniques", systemImage: "book")
+                }
+                .accessibilityIdentifier("guide")
+            }
+        }
+        .sheet(isPresented: $showGuide) {
+            NavigationStack {
+                TechniqueGuideView(isSheet: true)
+            }
+        }
         .overlay {
             if vm.isPaused {
                 PauseOverlay(vm: vm)
