@@ -117,7 +117,11 @@ struct BoardView: View {
         if highlightSameDigits && activeDigit != 0 && vm.displayValues.cells[index] == activeDigit {
             return Theme.cellSameDigit
         }
-        if let selected = vm.selected, highlightPeers, SudokuKit.Grid.peers[selected].contains(index) {
+        // Peers shade only for a filled selection — picking an empty cell
+        // lights nothing but the cell itself.
+        if let selected = vm.selected, highlightPeers,
+           vm.displayValues.cells[selected] != 0,
+           SudokuKit.Grid.peers[selected].contains(index) {
             return Theme.cellPeer
         }
         if covered.contains(index) {
