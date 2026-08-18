@@ -58,6 +58,19 @@ struct BoardView: View {
         let isTrial = diff != nil && value != 0 && vm.values.cells[index] == 0
         // Mistakes describe the real game, not a sheet.
         let isMistake = !vm.isPaused && vm.viewedLayer == nil && vm.mistakes.contains(index)
+        // Mark-level annotation tints (hint/coach patterns live on pencil
+        // marks as much as on cells). Annotations describe the real game.
+        var pencilPattern = CandidateSet()
+        var pencilEliminated = CandidateSet()
+        if !vm.isPaused && vm.viewedLayer == nil && !vm.annotations.isEmpty {
+            for (candidate, role) in vm.annotations.candidates where candidate.cell == index {
+                switch role {
+                case .pattern: pencilPattern.insert(digit: candidate.digit)
+                case .elimination: pencilEliminated.insert(digit: candidate.digit)
+                case .context: break
+                }
+            }
+        }
         return CellView(
             identifier: "cell_\(row)_\(col)",
             value: value,
@@ -66,6 +79,8 @@ struct BoardView: View {
             highlightDigit: highlightSameDigits ? activeDigit : 0,
             pencilAdded: added,
             pencilRemoved: removed,
+            pencilPattern: pencilPattern,
+            pencilEliminated: pencilEliminated,
             isTrial: isTrial,
             background: background(for: index, activeDigit: activeDigit, covered: covered),
             isMistake: isMistake,
@@ -126,11 +141,22 @@ struct BoardView: View {
         if index == vm.selected {
             return Theme.cellSelected
         }
+        // Hint/coach highlights: pattern and elimination cells pop; the
+        // pattern's home unit shades quietly, below the same-digit tint.
+        let annotationRole = vm.viewedLayer == nil ? vm.annotations.cells[index] : nil
+        switch annotationRole {
+        case .pattern: return Theme.cellSameDigit
+        case .elimination: return Theme.cellMistake
+        case .context, nil: break
+        }
         // Only placed digits tint the whole cell. A matching pencil mark is
         // indicated by the chip on the mark itself — tinting those cells too
         // (on top of coverage shading) drowned the board in highlights.
         if highlightSameDigits && activeDigit != 0 && vm.displayValues.cells[index] == activeDigit {
             return Theme.cellSameDigit
+        }
+        if annotationRole == .context {
+            return Theme.cellPeer
         }
         // Peers shade only for a filled selection — picking an empty cell
         // lights nothing but the cell itself.
@@ -158,6 +184,10 @@ private struct CellView: View {
     /// struck through and faded, so the chain's eliminations stay visible
     /// without reading as errors.
     let pencilRemoved: CandidateSet
+    /// Marks forming a hint/coach pattern — emphasized in accent color.
+    let pencilPattern: CandidateSet
+    /// Marks a hint/coach pattern eliminates — emphasized in mistake color.
+    let pencilEliminated: CandidateSet
     /// A hypothetical digit placed in a chain layer, not in the real game.
     let isTrial: Bool
     let background: Color
@@ -226,8 +256,10 @@ private struct CellView: View {
                         let present = pencil.contains(digit: digit)
                         let removed = !present && pencilRemoved.contains(digit: digit)
                         let isHighlighted = present && digit == highlightDigit
+                        let isAnnotated = present
+                            && (pencilPattern.contains(digit: digit) || pencilEliminated.contains(digit: digit))
                         Text(present || removed ? "\(digit)" : " ")
-                            .font(.system(size: 9, weight: isHighlighted ? .bold : .regular))
+                            .font(.system(size: 9, weight: isHighlighted || isAnnotated ? .bold : .regular))
                             .minimumScaleFactor(0.5)
                             .foregroundStyle(markColor(
                                 digit: digit, present: present, removed: removed,
@@ -264,6 +296,8 @@ private struct CellView: View {
         digit: UInt8, present: Bool, removed: Bool, isHighlighted: Bool
     ) -> Color {
         if isHighlighted { return .white }
+        if present && pencilPattern.contains(digit: digit) { return Color.accentColor }
+        if present && pencilEliminated.contains(digit: digit) { return Theme.mistakeText }
         if removed { return Theme.pencilRemovedText }
         if pencilAdded.contains(digit: digit) { return Theme.pencilAddedText }
         return Theme.pencilText

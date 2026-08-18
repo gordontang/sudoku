@@ -8,13 +8,13 @@ public enum Rater {
             return .master
         }
         switch result.techniques.max() ?? .nakedSingle {
-        case .nakedSingle, .hiddenSingle:
+        case .fullHouse, .nakedSingle, .hiddenSingle:
             return .easy
         case .lockedCandidates:
             return .medium
-        case .nakedPair, .hiddenPair:
+        case .lockedPair, .nakedPair, .hiddenPair:
             return .hard
-        case .nakedTriple, .xWing:
+        case .lockedTriple, .nakedTriple, .hiddenTriple, .nakedQuad, .hiddenQuad, .xWing:
             return .expert
         }
     }

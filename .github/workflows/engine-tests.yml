@@ -1,0 +1,17 @@
+# SudokuKit is a pure-logic package, so its suite runs on Linux — no
+# simulator, no macOS runner minutes. App/UI tests still need Xcode locally.
+name: Engine tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run SudokuKit tests
+        working-directory: SudokuKit
+        run: swift test

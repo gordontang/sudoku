@@ -1,9 +1,20 @@
 import Testing
 @testable import SudokuKit
 
-// A well-known 17-clue puzzle with a unique solution.
+// A well-known 17-clue puzzle with a unique solution. Despite the sparse
+// clues it falls to naked and hidden singles alone.
 private let seventeenClue =
     "000000010400000000020000000000050407008000300001090000300400200050100000000806000"
+
+// Norvig's "hard" 17-clue puzzle: stalls singles, but falls to the full
+// technique ladder (locked candidates and subsets). Unique solution.
+private let singlesStaller =
+    "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......"
+
+// "Platinum Blonde": stalls the entire pattern ladder — genuine master
+// territory, solvable only by search or chains. Unique solution.
+private let ladderStaller =
+    "000000012000000003002300400001800005060070800000009000008500000900040500470006000"
 
 @Suite struct GridTests {
     @Test func geometry() {
@@ -137,12 +148,36 @@ private let seventeenClue =
         #expect(Solver.solveWithSingles(puzzle.givens) == puzzle.solution)
     }
 
-    @Test func solveWithSinglesStallsWhenHarderLogicIsNeeded() {
-        // The 17-clue classic needs search; singles alone must stall, not guess.
+    @Test func solveWithSinglesSolvesTheSeventeenClueClassic() {
+        // Sparse clues don't imply hard logic — this famous 17-clue puzzle
+        // cascades from singles alone.
         let grid = Grid(string: seventeenClue)!
+        #expect(Solver.solveWithSingles(grid) == Solver.firstSolution(grid))
+    }
+
+    @Test func solveWithSinglesStallsWhenHarderLogicIsNeeded() {
+        let grid = Grid(string: singlesStaller)!
         #expect(Solver.solveWithSingles(grid) == nil)
         // An empty grid offers no single at all.
         #expect(Solver.solveWithSingles(Grid()) == nil)
+    }
+
+    @Test func ladderSolvesWhatSinglesCannot() {
+        // The stronger ladder — locked candidates, subsets — must crack a
+        // puzzle singles stall on, and agree with DFS when it does.
+        let grid = Grid(string: singlesStaller)!
+        let result = Solver.solveLogically(grid)
+        #expect(result.solved != nil)
+        #expect(result.solved == Solver.firstSolution(grid))
+        #expect(result.techniques.max() ?? .nakedSingle > .hiddenSingle)
+    }
+
+    @Test func trueMasterStallsTheWholeLadder() {
+        // "Platinum Blonde" resists every pattern technique the solver has;
+        // it must stall (and therefore rate as master), not guess.
+        let grid = Grid(string: ladderStaller)!
+        #expect(Solver.solveLogically(grid).solved == nil)
+        #expect(Rater.rate(grid) == .master)
     }
 
     @Test func logicalSolutionMatchesSearch() {

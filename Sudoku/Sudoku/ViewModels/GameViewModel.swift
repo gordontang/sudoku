@@ -58,7 +58,16 @@ final class GameViewModel {
     private var flashID = UUID()
     var showVictory = false
     var showFailure = false
-    var hintMessage: String?
+    var hintMessage: String? {
+        didSet {
+            // The banner and the board highlights are one explanation —
+            // dismissing the message (button, timeout, restart) clears both.
+            if hintMessage == nil { annotations = BoardAnnotations() }
+        }
+    }
+    /// Board highlights explaining the current hint — pattern cells and their
+    /// home unit. Lives and dies with `hintMessage`.
+    private(set) var annotations = BoardAnnotations()
     private(set) var victoryIsRecord = false
     private(set) var victoryPreviousBest: TimeInterval?
     let startedAt: Date
@@ -300,6 +309,8 @@ final class GameViewModel {
 
     func tapDigit(_ digit: UInt8) {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
+        // A move can invalidate the pattern a hint was pointing at.
+        annotations = BoardAnnotations()
 
         if !layers.isEmpty {
             // A move on the Game view means leaving chain mode — confirm
@@ -438,6 +449,7 @@ final class GameViewModel {
 
     func erase() {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
+        annotations = BoardAnnotations()
         if !layers.isEmpty {
             guard let vi = viewedLayer else {
                 Haptics.warning()
@@ -471,6 +483,7 @@ final class GameViewModel {
 
     func undo() {
         guard !isGameOver, !isPaused else { return }
+        annotations = BoardAnnotations()
         if !layers.isEmpty {
             guard let vi = viewedLayer, !layers[vi].undoStack.isEmpty else { return }
             var layer = layers[vi]
@@ -545,13 +558,13 @@ final class GameViewModel {
         if let wrong = wrongCells.first {
             placeHint(at: wrong, message: "Fixed R\(wrong / 9 + 1)C\(wrong % 9 + 1) — it should be \(solution.cells[wrong]).")
         } else if let h = HintEngine.hint(for: values), givens.cells[h.cell] == 0 {
-            placeHint(at: h.cell, message: h.explanation)
+            placeHint(at: h.cell, message: h.explanation, hint: h)
         } else if let empty = (0..<81).first(where: { values.cells[$0] == 0 }) {
             placeHint(at: empty, message: "Revealed R\(empty / 9 + 1)C\(empty % 9 + 1): it's a \(solution.cells[empty]).")
         }
     }
 
-    private func placeHint(at cell: Int, message: String) {
+    private func placeHint(at cell: Int, message: String, hint: Hint? = nil) {
         selected = cell
         var move = Move(valueChanges: [(cell, values.cells[cell])], pencilChanges: [(cell, pencil[cell])])
         let digit = solution.cells[cell]
@@ -565,6 +578,10 @@ final class GameViewModel {
         values.cells[cell] = digit
         undoStack.append(move)
         hintMessage = message
+        // Set highlights after the message: the didSet above cleared them.
+        if let hint {
+            annotations = BoardAnnotations(hint: hint)
+        }
         recomputeMistakes()
         flashCompletedUnits(around: cell)
         Haptics.light()
