@@ -166,6 +166,21 @@ private struct GameContentView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("autocomplete")
+            } else if vm.canSaveViewedLayer {
+                // The viewed alt holds the solution — commit it to the real
+                // game instead of making the player re-enter it by hand.
+                Button {
+                    vm.saveViewedLayer()
+                } label: {
+                    Label("Save to Game", systemImage: "square.and.arrow.down")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.accentColor))
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("layer_save")
             } else if showScore {
                 Text("Score \(vm.score)")
                     .fontWeight(.semibold)
