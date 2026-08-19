@@ -25,6 +25,13 @@ struct BoardView: View {
         .background(Theme.boardBackground)
         .overlay(GridLines(major: false).stroke(Theme.gridLineMinor, lineWidth: 0.5))
         .overlay(GridLines(major: true).stroke(Theme.gridLineMajor, lineWidth: 2))
+        .overlay {
+            // Chain links from coach/hint annotations: drawn candidate-to-
+            // candidate, solid for strong links, dashed for weak.
+            if !vm.isPaused && vm.viewedLayer == nil && !vm.annotations.links.isEmpty {
+                ChainLinksOverlay(links: vm.annotations.links)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Sudoku board")
@@ -61,11 +68,13 @@ struct BoardView: View {
         // Mark-level annotation tints (hint/coach patterns live on pencil
         // marks as much as on cells). Annotations describe the real game.
         var pencilPattern = CandidateSet()
+        var pencilAlternate = CandidateSet()
         var pencilEliminated = CandidateSet()
         if !vm.isPaused && vm.viewedLayer == nil && !vm.annotations.isEmpty {
             for (candidate, role) in vm.annotations.candidates where candidate.cell == index {
                 switch role {
                 case .pattern: pencilPattern.insert(digit: candidate.digit)
+                case .alternate: pencilAlternate.insert(digit: candidate.digit)
                 case .elimination: pencilEliminated.insert(digit: candidate.digit)
                 case .context: break
                 }
@@ -80,6 +89,7 @@ struct BoardView: View {
             pencilAdded: added,
             pencilRemoved: removed,
             pencilPattern: pencilPattern,
+            pencilAlternate: pencilAlternate,
             pencilEliminated: pencilEliminated,
             isTrial: isTrial,
             background: background(for: index, activeDigit: activeDigit, covered: covered),
@@ -145,7 +155,7 @@ struct BoardView: View {
         // pattern's home unit shades quietly, below the same-digit tint.
         let annotationRole = vm.viewedLayer == nil ? vm.annotations.cells[index] : nil
         switch annotationRole {
-        case .pattern: return Theme.cellSameDigit
+        case .pattern, .alternate: return Theme.cellSameDigit
         case .elimination: return Theme.cellMistake
         case .context, nil: break
         }
@@ -186,6 +196,8 @@ private struct CellView: View {
     let pencilRemoved: CandidateSet
     /// Marks forming a hint/coach pattern — emphasized in accent color.
     let pencilPattern: CandidateSet
+    /// The pattern's second polarity (coloring/chains) — orange.
+    let pencilAlternate: CandidateSet
     /// Marks a hint/coach pattern eliminates — emphasized in mistake color.
     let pencilEliminated: CandidateSet
     /// A hypothetical digit placed in a chain layer, not in the real game.
@@ -257,7 +269,9 @@ private struct CellView: View {
                         let removed = !present && pencilRemoved.contains(digit: digit)
                         let isHighlighted = present && digit == highlightDigit
                         let isAnnotated = present
-                            && (pencilPattern.contains(digit: digit) || pencilEliminated.contains(digit: digit))
+                            && (pencilPattern.contains(digit: digit)
+                                || pencilAlternate.contains(digit: digit)
+                                || pencilEliminated.contains(digit: digit))
                         Text(present || removed ? "\(digit)" : " ")
                             .font(.system(size: 9, weight: isHighlighted || isAnnotated ? .bold : .regular))
                             .minimumScaleFactor(0.5)
@@ -297,6 +311,7 @@ private struct CellView: View {
     ) -> Color {
         if isHighlighted { return .white }
         if present && pencilPattern.contains(digit: digit) { return Color.accentColor }
+        if present && pencilAlternate.contains(digit: digit) { return Theme.annotationAlt }
         if present && pencilEliminated.contains(digit: digit) { return Theme.mistakeText }
         if removed { return Theme.pencilRemovedText }
         if pencilAdded.contains(digit: digit) { return Theme.pencilAddedText }
@@ -325,6 +340,45 @@ private struct DiagonalStrike: Shape {
         path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
         return path
+    }
+}
+
+/// Lines between candidate marks visualizing a chain: each endpoint is the
+/// center of a specific pencil-mark subcell.
+struct ChainLinksOverlay: View {
+    let links: [ChainLink]
+
+    var body: some View {
+        GeometryReader { geo in
+            let cell = geo.size.width / 9
+            ForEach(Array(links.enumerated()), id: \.offset) { _, link in
+                Path { path in
+                    path.move(to: point(of: link.from, cell: cell))
+                    path.addLine(to: point(of: link.to, cell: cell))
+                }
+                .stroke(
+                    Theme.chainLink,
+                    style: StrokeStyle(
+                        lineWidth: 1.5,
+                        lineCap: .round,
+                        dash: link.isStrong ? [] : [4, 3]
+                    )
+                )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func point(of ref: CandidateRef, cell: CGFloat) -> CGPoint {
+        let row = CGFloat(ref.cell / 9)
+        let col = CGFloat(ref.cell % 9)
+        let sub = Int(ref.digit) - 1
+        let subX = CGFloat(sub % 3)
+        let subY = CGFloat(sub / 3)
+        return CGPoint(
+            x: col * cell + (subX + 0.5) * cell / 3,
+            y: row * cell + (subY + 0.5) * cell / 3
+        )
     }
 }
 

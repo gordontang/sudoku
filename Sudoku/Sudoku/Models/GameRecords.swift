@@ -16,6 +16,8 @@ final class SavedGame {
     var hintsUsed: Int
     var score: Int = 0
     var startedAt: Date
+    /// Encoded action log (see `MoveLogCoding`), for post-game review.
+    var moveLogData: Data = Data()
 
     init(
         givensData: Data,
@@ -27,7 +29,8 @@ final class SavedGame {
         mistakeCount: Int,
         hintsUsed: Int,
         score: Int = 0,
-        startedAt: Date
+        startedAt: Date,
+        moveLogData: Data = Data()
     ) {
         self.givensData = givensData
         self.solutionData = solutionData
@@ -39,6 +42,7 @@ final class SavedGame {
         self.hintsUsed = hintsUsed
         self.score = score
         self.startedAt = startedAt
+        self.moveLogData = moveLogData
     }
 
     var difficulty: Difficulty {
@@ -57,8 +61,13 @@ final class CompletedGame {
     var score: Int = 0
     var completed: Bool
     var finishedAt: Date
+    /// Encoded action log (see `MoveLogCoding`), for post-game review.
+    var moveLogData: Data = Data()
 
-    init(difficultyRaw: Int, seconds: Double, mistakes: Int, hints: Int, score: Int = 0, completed: Bool, finishedAt: Date) {
+    init(
+        difficultyRaw: Int, seconds: Double, mistakes: Int, hints: Int,
+        score: Int = 0, completed: Bool, finishedAt: Date, moveLogData: Data = Data()
+    ) {
         self.difficultyRaw = difficultyRaw
         self.seconds = seconds
         self.mistakes = mistakes
@@ -66,6 +75,7 @@ final class CompletedGame {
         self.score = score
         self.completed = completed
         self.finishedAt = finishedAt
+        self.moveLogData = moveLogData
     }
 
     var difficulty: Difficulty {

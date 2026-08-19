@@ -19,11 +19,11 @@ public enum HintEngine {
     /// deduction appears; the placement's technique is what gets reported.
     /// Returns nil when logic stalls (or the grid contains contradictions) —
     /// callers should then fall back to revealing a digit from the solution.
-    public static func hint(for grid: Grid) -> Hint? {
+    public static func hint(for grid: Grid, givens: Grid? = nil) -> Hint? {
         guard grid.isValid else { return nil }
         var g = grid
         var cands = g.candidates()
-        while let deduction = Techniques.findDeduction(grid: g, candidates: cands) {
+        while let deduction = Techniques.findDeduction(grid: g, candidates: cands, givens: givens) {
             switch deduction.kind {
             case .place(let cell, let digit):
                 return Hint(

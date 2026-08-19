@@ -43,6 +43,12 @@ enum Theme {
     /// The diagonal slash over an eliminated note — stronger than the faded
     /// digit so the elimination reads at pencil-mark size.
     static let pencilStrike = Color.secondary
+    /// Coach/review annotations: the pattern's second polarity (color B of a
+    /// coloring, alternate chain nodes, fish fins). Orange — clearly distinct
+    /// from both the accent blue and mistake red.
+    static let annotationAlt = Color(.systemOrange)
+    /// Chain link lines drawn between candidate marks.
+    static let chainLink = Color(.systemPurple).opacity(0.75)
     static let gridLineMajor = Color.primary.opacity(0.8)
     static let gridLineMinor = Color.primary.opacity(0.22)
 }

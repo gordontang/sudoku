@@ -61,13 +61,42 @@ final class GameViewModel {
     var hintMessage: String? {
         didSet {
             // The banner and the board highlights are one explanation —
-            // dismissing the message (button, timeout, restart) clears both.
-            if hintMessage == nil { annotations = BoardAnnotations() }
+            // dismissing the message (button, timeout, restart) clears both,
+            // unless the coach currently owns the highlights.
+            if hintMessage == nil && coach == nil { annotations = BoardAnnotations() }
         }
     }
-    /// Board highlights explaining the current hint — pattern cells and their
-    /// home unit. Lives and dies with `hintMessage`.
+    /// Board highlights explaining the current hint or coach advice —
+    /// pattern cells, candidate marks, chain links.
     private(set) var annotations = BoardAnnotations()
+
+    // MARK: Coach state
+
+    /// How much of the current advice has been revealed. Each escalation
+    /// shows more; the player pulls, the coach never pushes.
+    enum CoachTier: Int, Comparable {
+        case technique = 1  // just the technique's name
+        case location       // where to look
+        case pattern        // the pattern itself, conclusion unstated
+        case resolution     // the full explanation, applicable
+
+        static func < (lhs: CoachTier, rhs: CoachTier) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
+    }
+
+    struct CoachState {
+        var deduction: Deduction
+        var tier: CoachTier
+    }
+
+    private(set) var coach: CoachState?
+    private(set) var coachMessage: String?
+    private(set) var adviceUsed = 0
+
+    /// Every game action is recorded (with elapsed-time stamps) for
+    /// post-game review: stall analysis, mistake forensics.
+    private(set) var moveLog: [LoggedAction] = []
     private(set) var victoryIsRecord = false
     private(set) var victoryPreviousBest: TimeInterval?
     let startedAt: Date
@@ -140,6 +169,8 @@ final class GameViewModel {
         startedAt = record.startedAt
         modelContext = context
         saved = record
+        moveLog = MoveLogCoding.decode(record.moveLogData)
+        adviceUsed = moveLog.count { $0.kind == .advice && $0.digit == 1 }
         recomputeMistakes()
     }
 
@@ -205,9 +236,13 @@ final class GameViewModel {
         lockedDigit = nil
         layers = []
         viewedLayer = nil
+        coach = nil
+        coachMessage = nil
         hintMessage = nil
         scoreFlash = nil
         flashCells = []
+        adviceUsed = 0
+        moveLog = []
         accumulatedSeconds = 0
         runningSince = Date()
         isPaused = false
@@ -244,6 +279,7 @@ final class GameViewModel {
         guard !isGameOver, !isPaused, layers.count < Self.layerLimit else { return }
         layers.append(ChainLayer(values: values, pencil: pencil))
         viewedLayer = layers.count - 1
+        log(.layer)
         if layers.count == 1 {
             // First sheet: explain the sandbox once per chain session.
             hintMessage = "Alt added — a practice copy of the game. Moves here never touch the real board. Switch views with the chips above the board; the trash button removes alts. Solve an alt fully and you can save it to the game."
@@ -307,6 +343,7 @@ final class GameViewModel {
         for i in 0..<81 where values.cells[i] != solved.cells[i] {
             move.valueChanges.append((i, values.cells[i]))
             values.cells[i] = solved.cells[i]
+            log(.autoComplete, cell: i, digit: solved.cells[i])
         }
         for i in 0..<81 where !pencil[i].isEmpty {
             move.pencilChanges.append((i, pencil[i]))
@@ -319,6 +356,173 @@ final class GameViewModel {
         recomputeMistakes()
         checkCompletion()
         save()
+    }
+
+    // MARK: - Coach
+
+    /// The coach advises without answering: name the technique, then (on
+    /// request) where to look, then the pattern, then the full resolution.
+    /// Broken entries and stale notes outrank technique advice — a deduction
+    /// built on a wrong board would lie.
+    func coachAdvise() {
+        guard !isGameOver, !isPaused, layers.isEmpty else { return }
+        hintMessage = nil
+        adviceUsed += 1
+        log(.advice, digit: 1)
+
+        let wrong = (0..<81).filter {
+            givens.cells[$0] == 0 && values.cells[$0] != 0 && values.cells[$0] != solution.cells[$0]
+        }
+        if !wrong.isEmpty {
+            coach = nil
+            annotations = BoardAnnotations()
+            coachMessage = wrong.count == 1
+                ? "Something doesn't add up — one of your entries is wrong. Re-check recent placements before going deeper."
+                : "Something doesn't add up — \(wrong.count) of your entries are wrong. Re-check recent placements before going deeper."
+            Haptics.warning()
+            return
+        }
+
+        var stale = BoardAnnotations()
+        for i in 0..<81 where values.cells[i] == 0 {
+            let bad = pencil[i].subtracting(values.candidateSet(at: i))
+            for d in bad.digits {
+                stale.candidates[BoardAnnotations.Candidate(cell: i, digit: d)] = .elimination
+            }
+        }
+        if !stale.isEmpty {
+            coach = nil
+            annotations = stale
+            coachMessage = "Your notes have drifted — the marked ones clash with digits already on the board. Clean them up first; patterns need honest notes."
+            Haptics.light()
+            return
+        }
+
+        if let deduction = CoachEngine.nextDeduction(for: values, givens: givens) {
+            coach = CoachState(deduction: deduction, tier: .technique)
+            applyCoachTier()
+        } else {
+            coach = nil
+            annotations = BoardAnnotations()
+            coachMessage = "No standard pattern cracks this position — it's chain territory. Add an Alt and test one candidate of a two-candidate cell."
+        }
+        Haptics.light()
+    }
+
+    /// "Tell me more": reveal the next tier of the current advice.
+    func coachEscalate() {
+        guard var state = coach, let next = CoachTier(rawValue: state.tier.rawValue + 1) else { return }
+        state.tier = next
+        coach = state
+        log(.advice, digit: UInt8(next.rawValue))
+        applyCoachTier()
+        Haptics.light()
+    }
+
+    var coachCanEscalate: Bool {
+        coach.map { $0.tier < .resolution } ?? false
+    }
+
+    var coachCanApply: Bool {
+        coach?.tier == .resolution
+    }
+
+    private func applyCoachTier() {
+        guard let state = coach else { return }
+        let d = state.deduction
+        switch state.tier {
+        case .technique:
+            annotations = BoardAnnotations()
+            coachMessage = "There's a \(d.technique.displayName) available. (The book icon explains every technique.)"
+        case .location:
+            annotations = BoardAnnotations(deduction: d, reveal: .location)
+            if let unit = d.unit {
+                coachMessage = "Look at \(Grid.unitName(unit))."
+            } else if let digit = d.keyDigits.first, d.keyDigits.count == 1 {
+                coachMessage = "It involves the digit \(digit) — select a \(digit) on the board to light up its coverage."
+            } else {
+                coachMessage = "It involves digits \(digitPhrase(d.keyDigits))."
+            }
+        case .pattern:
+            annotations = BoardAnnotations(deduction: d, reveal: .pattern)
+            coachMessage = "These cells form the \(d.technique.displayName). What does it let you place or remove?"
+        case .resolution:
+            annotations = BoardAnnotations(deduction: d, reveal: .full)
+            coachMessage = d.explanation
+        }
+    }
+
+    /// At full reveal, do it for the player: a placement counts as a hint;
+    /// eliminations just tidy the notes the pattern proved impossible.
+    func coachApply() {
+        guard let state = coach, state.tier == .resolution, !isGameOver, !isPaused, layers.isEmpty else { return }
+        switch state.deduction.kind {
+        case .place(let cell, let digit):
+            guard givens.cells[cell] == 0 else { break }
+            hintsUsed += 1
+            selected = cell
+            var move = Move(valueChanges: [(cell, values.cells[cell])], pencilChanges: [(cell, pencil[cell])])
+            if AppSettings.autoClearPencil {
+                for p in Grid.peers[cell] where pencil[p].contains(digit: digit) {
+                    move.pencilChanges.append((p, pencil[p]))
+                    pencil[p].remove(digit: digit)
+                }
+            }
+            pencil[cell] = CandidateSet()
+            values.cells[cell] = digit
+            undoStack.append(move)
+            log(.hint, cell: cell, digit: digit)
+            recomputeMistakes()
+            flashCompletedUnits(around: cell)
+        case .eliminate(let elims):
+            var move = Move(valueChanges: [], pencilChanges: [])
+            for (cell, digits) in elims where !pencil[cell].intersection(digits).isEmpty {
+                move.pencilChanges.append((cell, pencil[cell]))
+                pencil[cell].subtract(digits)
+                log(.noteRemove, cell: cell, digit: digits.first ?? 0)
+            }
+            if !move.pencilChanges.isEmpty { undoStack.append(move) }
+        }
+        dismissCoach()
+        Haptics.light()
+        checkCompletion()
+        save()
+        if AppSettings.autoApplyAutoComplete && canAutoComplete {
+            autoComplete()
+        }
+    }
+
+    func dismissCoach() {
+        coach = nil
+        coachMessage = nil
+        annotations = BoardAnnotations()
+    }
+
+    /// Any board interaction may invalidate what a hint or the coach was
+    /// pointing at — clear it all.
+    private func clearGuidance() {
+        annotations = BoardAnnotations()
+        if coach != nil || coachMessage != nil {
+            coach = nil
+            coachMessage = nil
+        }
+    }
+
+    private func digitPhrase(_ set: CandidateSet) -> String {
+        let digits = set.digits.map(String.init)
+        guard digits.count > 1 else { return digits.first ?? "" }
+        return digits.dropLast().joined(separator: ", ") + " and " + digits.last!
+    }
+
+    // MARK: - Move log
+
+    private func log(_ kind: LoggedAction.Kind, cell: Int? = nil, digit: UInt8 = 0) {
+        moveLog.append(LoggedAction(
+            time: elapsed,
+            kind: kind,
+            cell: cell.map { UInt8($0) } ?? LoggedAction.noCell,
+            digit: digit
+        ))
     }
 
     // MARK: - Input
@@ -343,8 +547,8 @@ final class GameViewModel {
 
     func tapDigit(_ digit: UInt8) {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
-        // A move can invalidate the pattern a hint was pointing at.
-        annotations = BoardAnnotations()
+        // A move can invalidate the pattern a hint or the coach was showing.
+        clearGuidance()
 
         if !layers.isEmpty {
             // A move on the Game view means leaving chain mode — confirm
@@ -369,6 +573,7 @@ final class GameViewModel {
             }
             undoStack.append(Move(valueChanges: [], pencilChanges: [(cell, pencil[cell])]))
             pencil[cell].toggle(digit: digit)
+            log(pencil[cell].contains(digit: digit) ? .noteAdd : .noteRemove, cell: cell, digit: digit)
             Haptics.light()
             save()
             return
@@ -379,6 +584,7 @@ final class GameViewModel {
             // Tapping the digit already in the cell clears it.
             undoStack.append(Move(valueChanges: [(cell, old)], pencilChanges: []))
             values.cells[cell] = 0
+            log(.erase, cell: cell)
             recomputeMistakes()
             save()
             return
@@ -394,6 +600,7 @@ final class GameViewModel {
         pencil[cell] = CandidateSet()
         values.cells[cell] = digit
         undoStack.append(move)
+        log(.place, cell: cell, digit: digit)
         if values.cells[cell] == solution.cells[cell] {
             award(placementPoints)
             flashCompletedUnits(around: cell)
@@ -487,7 +694,7 @@ final class GameViewModel {
 
     func erase() {
         guard !isGameOver, !isPaused, let cell = selected, givens.cells[cell] == 0 else { return }
-        annotations = BoardAnnotations()
+        clearGuidance()
         if !layers.isEmpty {
             guard let vi = viewedLayer else {
                 Haptics.warning()
@@ -508,6 +715,7 @@ final class GameViewModel {
         undoStack.append(Move(valueChanges: [(cell, values.cells[cell])], pencilChanges: [(cell, pencil[cell])]))
         values.cells[cell] = 0
         pencil[cell] = CandidateSet()
+        log(.erase, cell: cell)
         recomputeMistakes()
         save()
     }
@@ -521,7 +729,7 @@ final class GameViewModel {
 
     func undo() {
         guard !isGameOver, !isPaused else { return }
-        annotations = BoardAnnotations()
+        clearGuidance()
         if !layers.isEmpty {
             guard let vi = viewedLayer, !layers[vi].undoStack.isEmpty else { return }
             var layer = layers[vi]
@@ -538,6 +746,7 @@ final class GameViewModel {
         guard let move = undoStack.popLast() else { return }
         for (cell, old) in move.valueChanges {
             values.cells[cell] = old
+            log(.undoValue, cell: cell, digit: old)
         }
         for (cell, old) in move.pencilChanges {
             pencil[cell] = old
@@ -579,6 +788,7 @@ final class GameViewModel {
         }
         guard !move.pencilChanges.isEmpty else { return }
         undoStack.append(move)
+        log(.noteAdd)
         Haptics.light()
         save()
     }
@@ -589,6 +799,7 @@ final class GameViewModel {
         // No hints in chain mode — they reference the real solution and would
         // mislead inside a hypothetical position.
         guard !isGameOver, !isPaused, layers.isEmpty else { return }
+        clearGuidance()
         hintsUsed += 1
         let wrongCells = (0..<81).filter {
             givens.cells[$0] == 0 && values.cells[$0] != 0 && values.cells[$0] != solution.cells[$0]
@@ -615,6 +826,7 @@ final class GameViewModel {
         pencil[cell] = CandidateSet()
         values.cells[cell] = digit
         undoStack.append(move)
+        log(.hint, cell: cell, digit: digit)
         hintMessage = message
         // Set highlights after the message: the didSet above cleared them.
         if let hint {
@@ -667,6 +879,7 @@ final class GameViewModel {
                 pencil[i] = CandidateSet()
             }
             values.cells[i] = solution.cells[i]
+            log(.autoComplete, cell: i, digit: solution.cells[i])
         }
         award(placementPoints * move.valueChanges.count)
         undoStack.append(move)
@@ -725,6 +938,7 @@ final class GameViewModel {
     /// On-demand check: flag all wrong cells, counting newly-found ones.
     func checkNow() {
         guard !isGameOver, !isPaused, layers.isEmpty else { return }
+        log(.check)
         let wrong = Set((0..<81).filter {
             values.cells[$0] != 0 && givens.cells[$0] == 0 && values.cells[$0] != solution.cells[$0]
         })
@@ -780,7 +994,8 @@ final class GameViewModel {
             hints: hintsUsed,
             score: score,
             completed: completed,
-            finishedAt: Date()
+            finishedAt: Date(),
+            moveLogData: MoveLogCoding.encode(moveLog)
         ))
         if let saved {
             modelContext.delete(saved)
@@ -818,6 +1033,7 @@ final class GameViewModel {
         record.mistakeCount = mistakeCount
         record.hintsUsed = hintsUsed
         record.score = score
+        record.moveLogData = MoveLogCoding.encode(moveLog)
         try? modelContext.save()
     }
 

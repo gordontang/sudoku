@@ -1,21 +1,13 @@
 public enum Rater {
     /// Rate a puzzle by the hardest technique the logical solver needs.
-    /// Deterministic: the solver has no randomness.
+    /// Deterministic: the solver has no randomness. Master means the puzzle
+    /// required a master-band technique — or stalled the whole ladder.
     public static func rate(_ givens: Grid) -> Difficulty {
         let result = Solver.solveLogically(givens)
         guard result.solved != nil else {
-            // Logic stalls; search is required.
+            // Even the full ladder stalls; search is required.
             return .master
         }
-        switch result.techniques.max() ?? .nakedSingle {
-        case .fullHouse, .nakedSingle, .hiddenSingle:
-            return .easy
-        case .lockedCandidates:
-            return .medium
-        case .lockedPair, .nakedPair, .hiddenPair:
-            return .hard
-        case .lockedTriple, .nakedTriple, .hiddenTriple, .nakedQuad, .hiddenQuad, .xWing:
-            return .expert
-        }
+        return (result.techniques.max() ?? .nakedSingle).band
     }
 }
