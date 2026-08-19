@@ -246,7 +246,7 @@ final class GameViewModel {
         viewedLayer = layers.count - 1
         if layers.count == 1 {
             // First sheet: explain the sandbox once per chain session.
-            hintMessage = "Alt added — a practice copy of the game. Moves here never touch the real board. Switch views with the chips above the board; the trash button removes alts."
+            hintMessage = "Alt added — a practice copy of the game. Moves here never touch the real board. Switch views with the chips above the board; the trash button removes alts. Solve an alt fully and you can save it to the game."
         }
         Haptics.light()
     }
@@ -285,6 +285,40 @@ final class GameViewModel {
     func viewLayer(_ index: Int?) {
         guard index == nil || (0..<layers.count).contains(index!) else { return }
         viewedLayer = index
+    }
+
+    /// Whether the viewed alt holds the puzzle's solution and can be saved
+    /// back to the real game. Alts refuse illegal moves, so a fully-filled
+    /// alt is conflict-free — and the only conflict-free completion of the
+    /// givens is the solution, making this check exact, not a spoiler.
+    var canSaveViewedLayer: Bool {
+        guard !isGameOver, !isPaused, let vi = viewedLayer else { return false }
+        return layers[vi].values.cells == solution.cells
+    }
+
+    /// Commit the viewed alt's solved board to the real game, so a puzzle
+    /// finished on an alt doesn't have to be re-entered by hand. Cells the
+    /// game was missing (or had wrong) score as normal placements, then the
+    /// game completes.
+    func saveViewedLayer() {
+        guard canSaveViewedLayer, let vi = viewedLayer else { return }
+        let solved = layers[vi].values
+        var move = Move(valueChanges: [], pencilChanges: [])
+        for i in 0..<81 where values.cells[i] != solved.cells[i] {
+            move.valueChanges.append((i, values.cells[i]))
+            values.cells[i] = solved.cells[i]
+        }
+        for i in 0..<81 where !pencil[i].isEmpty {
+            move.pencilChanges.append((i, pencil[i]))
+            pencil[i] = CandidateSet()
+        }
+        award(placementPoints * move.valueChanges.count)
+        undoStack.append(move)
+        layers = []
+        viewedLayer = nil
+        recomputeMistakes()
+        checkCompletion()
+        save()
     }
 
     // MARK: - Input
@@ -418,6 +452,10 @@ final class GameViewModel {
             }
         }
         layers[vi] = layer
+        if layer.values.cells == solution.cells {
+            // The alt just reached the solution — point at the way out.
+            hintMessage = "Alt solved! Tap Save to Game to finish the puzzle with it."
+        }
         Haptics.light()
     }
 

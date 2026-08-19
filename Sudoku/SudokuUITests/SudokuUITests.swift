@@ -100,6 +100,29 @@ final class SudokuUITests: XCTestCase {
         XCTAssertTrue(cell.label.contains("contains 8"), "got: \(cell.label)")
     }
 
+    func testSaveSolvedAltToGame() {
+        let app = launchApp()
+        startEasyGame(app)
+        app.buttons["alt"].tap()
+        XCTAssertTrue(app.buttons["layer_1"].waitForExistence(timeout: 3), "Alt bar should appear")
+
+        // Solve the entire puzzle inside the alt (fixture strings from
+        // UITestSupport.fixedPuzzle; the targets can't share code).
+        let givens = Array("003560920006823000100900863070632054400000002230745080684007001000416300017098500")
+        let solution = Array("843561927796823415152974863978632154465189732231745689684357291529416378317298546")
+        let save = app.buttons["layer_save"]
+        XCTAssertFalse(save.exists, "Save must not be offered before the alt is solved")
+        for i in 0..<81 where givens[i] == "0" {
+            app.buttons["cell_\(i / 9)_\(i % 9)"].tap()
+            app.buttons["digit_\(solution[i])"].tap()
+        }
+
+        // Saving the solved alt finishes the real game — no re-entry by hand.
+        XCTAssertTrue(save.waitForExistence(timeout: 3), "Save to Game should appear once the alt is solved")
+        save.tap()
+        XCTAssertTrue(app.buttons["victory_done"].waitForExistence(timeout: 5), "Saving the solved alt should complete the puzzle")
+    }
+
     func testTechniqueGuideOpensDuringGame() {
         let app = launchApp()
         let cell = startEasyGame(app)
