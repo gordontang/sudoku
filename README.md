@@ -9,7 +9,8 @@ no accounts.
 - **`SudokuKit/`** — pure-logic Swift package: puzzle generator, human-technique
   solver (a 37-technique ladder: singles → locked candidates → subsets → fish →
   single-digit patterns → wings → uniqueness → coloring → chains → ALS → AIC),
-  difficulty rater, hint engine, and coach engine. No UIKit/SwiftUI
+  difficulty rater, hint engine, coach engine, and training engine (drill
+  mining, a verified drill bank, and answer checking). No UIKit/SwiftUI
   dependencies.
 - **`Sudoku/`** — SwiftUI + SwiftData app. The Xcode project uses a
   file-system-synchronized group, so adding a Swift file to `Sudoku/Sudoku/`
@@ -26,6 +27,15 @@ no accounts.
   then the pattern itself (highlighted on the board, chains drawn
   candidate-to-candidate), and only at the last step the full resolution. It
   also calls out wrong entries and stale notes before advising.
+- **Training**: a lesson for every technique on the ladder, in curriculum
+  order. Each one reads the technique, steps through a worked example (revealed
+  the way the coach would — name → location → pattern → resolution), then drops
+  you onto real positions where that technique is the only move and asks you to
+  find it yourself. Three clean finds — no hints, no wrong answers — master a
+  lesson; a mastery ring tracks each. Practice positions come from a verified
+  shipped bank and an on-device miner that harvests fresh ones. **Mixed
+  practice** replays positions from every lesson you've started with the
+  technique name withheld — recognition, not recall.
 - **Game review**: after a win, a move-by-move analysis finds where you
   stalled and what was available at that moment, and classifies each wrong
   entry as a misread vs. a guess — every moment replayable on a board
@@ -65,6 +75,15 @@ xcodebuild test -project Sudoku/Sudoku.xcodeproj -scheme Sudoku \
 ```
 
 Requires Xcode 16+; deployment target iOS 17.
+
+## Regenerating the drill bank
+
+`SudokuKit/Sources/SudokuKit/TrainingBank.swift` is generated, not hand-edited:
+each entry is a real solve position where a technique is the cheapest available
+deduction, verified sound. Two developer tools in the test target
+(`DrillBankTools`) rebuild it — mine positions across bands, then assemble the
+bank (see the doc comment there for the exact env-var invocations). The engine
+tests re-verify every shipped drill, so a stale or unsound bank fails CI.
 
 ## UI-test launch arguments
 

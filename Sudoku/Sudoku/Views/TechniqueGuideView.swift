@@ -115,39 +115,50 @@ private struct TechniqueDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(topic.description)
-                    .font(.callout)
+            TechniqueTopicBody(topic: topic)
+                .padding(16)
+        }
+        .navigationTitle(topic.name)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
 
-                if let example = topic.example {
-                    MiniBoardView(example: example)
-                        .frame(maxWidth: 340)
-                        .frame(maxWidth: .infinity)
-                    Text(example.caption)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+/// A topic's teaching content — description, illustrative board, and steps.
+/// The guide shows it on its own page; a training lesson embeds it as the
+/// "Learn" step.
+struct TechniqueTopicBody: View {
+    let topic: TechniqueTopic
 
-                if !topic.steps.isEmpty {
-                    Text("How to use it")
-                        .font(.headline)
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(Array(topic.steps.enumerated()), id: \.offset) { i, step in
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("\(i + 1).")
-                                    .font(.callout.weight(.semibold))
-                                    .foregroundStyle(Color.accentColor)
-                                Text(step)
-                                    .font(.callout)
-                            }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(topic.description)
+                .font(.callout)
+
+            if let example = topic.example {
+                MiniBoardView(example: example)
+                    .frame(maxWidth: 340)
+                    .frame(maxWidth: .infinity)
+                Text(example.caption)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !topic.steps.isEmpty {
+                Text("How to use it")
+                    .font(.headline)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(topic.steps.enumerated()), id: \.offset) { i, step in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("\(i + 1).")
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                            Text(step)
+                                .font(.callout)
                         }
                     }
                 }
             }
-            .padding(16)
         }
-        .navigationTitle(topic.name)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

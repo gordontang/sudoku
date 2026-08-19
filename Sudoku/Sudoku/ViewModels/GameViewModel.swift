@@ -436,13 +436,7 @@ final class GameViewModel {
             coachMessage = "There's a \(d.technique.displayName) available. (The book icon explains every technique.)"
         case .location:
             annotations = BoardAnnotations(deduction: d, reveal: .location)
-            if let unit = d.unit {
-                coachMessage = "Look at \(Grid.unitName(unit))."
-            } else if let digit = d.keyDigits.first, d.keyDigits.count == 1 {
-                coachMessage = "It involves the digit \(digit) — select a \(digit) on the board to light up its coverage."
-            } else {
-                coachMessage = "It involves digits \(digitPhrase(d.keyDigits))."
-            }
+            coachMessage = CoachPhrasing.locationHint(for: d)
         case .pattern:
             annotations = BoardAnnotations(deduction: d, reveal: .pattern)
             coachMessage = "These cells form the \(d.technique.displayName). What does it let you place or remove?"
@@ -506,12 +500,6 @@ final class GameViewModel {
             coach = nil
             coachMessage = nil
         }
-    }
-
-    private func digitPhrase(_ set: CandidateSet) -> String {
-        let digits = set.digits.map(String.init)
-        guard digits.count > 1 else { return digits.first ?? "" }
-        return digits.dropLast().joined(separator: ", ") + " and " + digits.last!
     }
 
     // MARK: - Move log

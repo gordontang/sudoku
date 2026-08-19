@@ -47,6 +47,7 @@ enum UITestSupport {
             SettingsKeys.keepScreenOn,
             SettingsKeys.autoApplyAutoComplete,
             SettingsKeys.appearance,
+            SettingsKeys.trainingProgress,
         ] {
             UserDefaults.standard.removeObject(forKey: key)
         }
