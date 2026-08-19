@@ -33,8 +33,9 @@ no accounts.
 - **Technique guide**: an in-app reference covering the full ladder, from
   Full House to Alternating Inference Chains, with worked examples.
 - **Pencil marks**: toggle pencil mode; placing a digit auto-clears that digit
-  from peers' notes (undo restores them). Long-press Pencil fills all
-  candidates.
+  from peers' notes (undo restores them). The Auto Pencil button (or a
+  long-press on Pencil) notes every valid candidate in every empty cell —
+  no digits placed, but naked singles become visible at a glance.
 - **Mistake feedback** (Settings): instant vs. solution (default), conflicts
   only, or on-demand Check. Optional 3-mistake limit. Flags use color plus a
   corner marker for colorblind accessibility.
