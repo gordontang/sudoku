@@ -9,13 +9,14 @@ public enum Solver {
     // MARK: - Logical solving
 
     /// Apply human techniques in ascending cost until solved or stuck.
-    /// Deterministic for a given grid — no randomness.
+    /// Deterministic for a given grid — no randomness. The start position
+    /// doubles as the givens for uniqueness-based techniques.
     public static func solveLogically(_ start: Grid) -> LogicalResult {
         var grid = start
         var cands = grid.candidates()
         var used = Set<Technique>()
         while !grid.isFull {
-            guard let deduction = Techniques.findDeduction(grid: grid, candidates: cands) else {
+            guard let deduction = Techniques.findDeduction(grid: grid, candidates: cands, givens: start) else {
                 return LogicalResult(solved: nil, techniques: used)
             }
             used.insert(deduction.technique)

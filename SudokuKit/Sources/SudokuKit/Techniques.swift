@@ -1,9 +1,36 @@
+/// One candidate: a digit in a cell. The atom that patterns, colorings, and
+/// chains are drawn with.
+public struct CandidateRef: Sendable, Hashable {
+    public let cell: Int
+    public let digit: UInt8
+
+    public init(cell: Int, digit: UInt8) {
+        self.cell = cell
+        self.digit = digit
+    }
+}
+
+/// A link in a rendered chain: solid (strong) or dashed (weak) between two
+/// candidates.
+public struct ChainLink: Sendable, Hashable {
+    public let from: CandidateRef
+    public let to: CandidateRef
+    public let isStrong: Bool
+
+    public init(from: CandidateRef, to: CandidateRef, isStrong: Bool) {
+        self.from = from
+        self.to = to
+        self.isStrong = isStrong
+    }
+}
+
 /// A single logical step: either a placement or a set of candidate eliminations.
 ///
 /// Beyond the action itself, a deduction carries the machine-readable shape of
 /// the pattern that justifies it — which cells form it, which unit it lives
-/// in, and which digits it is about — so hints, coaching, and lessons can
-/// highlight the reasoning instead of just asserting the conclusion.
+/// in, which digits it is about, and (for coloring/chain techniques) the
+/// candidate-level structure — so hints, coaching, and lessons can highlight
+/// the reasoning instead of just asserting the conclusion.
 public struct Deduction: Sendable {
     public enum Kind: Sendable {
         case place(cell: Int, digit: UInt8)
@@ -13,13 +40,20 @@ public struct Deduction: Sendable {
     public let kind: Kind
     public let technique: Technique
     /// Cells forming the pattern: the subset's cells, the fish's corners,
-    /// the single's cell. Sorted ascending.
+    /// the chain's cells. Sorted ascending.
     public let patternCells: [Int]
     /// Index into `Grid.units` when the pattern has one home unit; nil for
-    /// patterns spanning units (naked single, X-Wing).
+    /// patterns spanning units.
     public let unit: Int?
     /// The digits the pattern reasons about.
     public let keyDigits: CandidateSet
+    /// Candidate-level pattern marks (chain nodes of one polarity, a fish's
+    /// corners, color A of a coloring).
+    public let patternCandidates: [CandidateRef]
+    /// The opposite polarity/color, where the pattern has one.
+    public let secondaryCandidates: [CandidateRef]
+    /// Chain links for rendering, in order.
+    public let links: [ChainLink]
     public let explanation: String
 
     public init(
@@ -28,6 +62,9 @@ public struct Deduction: Sendable {
         patternCells: [Int] = [],
         unit: Int? = nil,
         keyDigits: CandidateSet = CandidateSet(),
+        patternCandidates: [CandidateRef] = [],
+        secondaryCandidates: [CandidateRef] = [],
+        links: [ChainLink] = [],
         explanation: String
     ) {
         self.kind = kind
@@ -35,6 +72,9 @@ public struct Deduction: Sendable {
         self.patternCells = patternCells
         self.unit = unit
         self.keyDigits = keyDigits
+        self.patternCandidates = patternCandidates
+        self.secondaryCandidates = secondaryCandidates
+        self.links = links
         self.explanation = explanation
     }
 
@@ -48,9 +88,25 @@ public struct Deduction: Sendable {
 }
 
 public enum Techniques {
-    /// Find the cheapest available deduction, trying techniques in ascending order.
-    /// Iteration order is fixed, so results are deterministic for a given grid state.
-    public static func findDeduction(grid: Grid, candidates: [CandidateSet]) -> Deduction? {
+    /// 81×81 sight table: do two cells share a row, column, or box?
+    static let sees: [[Bool]] = {
+        var t = Array(repeating: Array(repeating: false, count: 81), count: 81)
+        for i in 0..<81 {
+            for p in Grid.peers[i] { t[i][p] = true }
+        }
+        return t
+    }()
+
+    /// Find the cheapest available deduction, trying techniques in ascending
+    /// order. Iteration order is fixed, so results are deterministic for a
+    /// given grid state.
+    ///
+    /// `givens` (the puzzle's original clues) enables the avoidable-rectangle
+    /// check; uniqueness techniques in general assume the puzzle has exactly
+    /// one solution — true for every generated puzzle.
+    public static func findDeduction(
+        grid: Grid, candidates: [CandidateSet], givens: Grid? = nil
+    ) -> Deduction? {
         if let d = fullHouse(grid, candidates) { return d }
         if let d = nakedSingle(grid, candidates) { return d }
         if let d = hiddenSingle(grid, candidates) { return d }
@@ -61,7 +117,29 @@ public enum Techniques {
         if let d = hiddenSubset(grid, candidates, size: 3) { return d }
         if let d = nakedSubset(grid, candidates, size: 4) { return d }
         if let d = hiddenSubset(grid, candidates, size: 4) { return d }
-        if let d = xWing(grid, candidates) { return d }
+        if let d = basicFish(grid, candidates, size: 2) { return d }
+        if let d = turbotFamily(grid, candidates) { return d }
+        if let d = emptyRectangle(grid, candidates) { return d }
+        if let d = xyWing(grid, candidates) { return d }
+        if let d = basicFish(grid, candidates, size: 3) { return d }
+        if let d = basicFish(grid, candidates, size: 4) { return d }
+        if let d = finnedFish(grid, candidates, size: 2) { return d }
+        if let d = finnedFish(grid, candidates, size: 3) { return d }
+        if let d = finnedFish(grid, candidates, size: 4) { return d }
+        if let d = xyzWing(grid, candidates) { return d }
+        if let d = wWing(grid, candidates) { return d }
+        if let d = remotePair(grid, candidates) { return d }
+        if let d = bugPlusOne(grid, candidates) { return d }
+        if let d = uniqueRectangle(grid, candidates) { return d }
+        if let d = hiddenRectangle(grid, candidates) { return d }
+        if let d = avoidableRectangle(grid, candidates, givens: givens) { return d }
+        if let d = simpleColors(grid, candidates) { return d }
+        if let d = multiColors(grid, candidates) { return d }
+        if let d = xChain(grid, candidates) { return d }
+        if let d = xyChain(grid, candidates) { return d }
+        if let d = sueDeCoq(grid, candidates) { return d }
+        if let d = alsXZ(grid, candidates) { return d }
+        if let d = aic(grid, candidates) { return d }
         return nil
     }
 
@@ -312,59 +390,6 @@ public enum Techniques {
         return nil
     }
 
-    // MARK: - X-Wing
-
-    static func xWing(_ grid: Grid, _ cands: [CandidateSet]) -> Deduction? {
-        for d: UInt8 in 1...9 {
-            // Row-based X-Wing.
-            if let ded = xWingAxis(grid, cands, digit: d, rowBased: true) { return ded }
-            // Column-based X-Wing.
-            if let ded = xWingAxis(grid, cands, digit: d, rowBased: false) { return ded }
-        }
-        return nil
-    }
-
-    private static func xWingAxis(_ grid: Grid, _ cands: [CandidateSet], digit d: UInt8, rowBased: Bool) -> Deduction? {
-        func index(_ line: Int, _ cross: Int) -> Int {
-            rowBased ? line * 9 + cross : cross * 9 + line
-        }
-        var lines: [(line: Int, crosses: [Int])] = []
-        for line in 0..<9 {
-            let crosses = (0..<9).filter {
-                let i = index(line, $0)
-                return grid.cells[i] == 0 && cands[i].contains(digit: d)
-            }
-            if crosses.count == 2 { lines.append((line, crosses)) }
-        }
-        for i in 0..<lines.count {
-            for j in (i + 1)..<lines.count where lines[i].crosses == lines[j].crosses {
-                var elims: [(Int, CandidateSet)] = []
-                for other in 0..<9 where other != lines[i].line && other != lines[j].line {
-                    for cross in lines[i].crosses {
-                        let idx = index(other, cross)
-                        if grid.cells[idx] == 0 && cands[idx].contains(digit: d) {
-                            elims.append((idx, CandidateSet(digit: d)))
-                        }
-                    }
-                }
-                if !elims.isEmpty {
-                    let axis = rowBased ? "rows" : "columns"
-                    let corners = (lines[i].crosses + lines[j].crosses).enumerated().map {
-                        index($0.offset < 2 ? lines[i].line : lines[j].line, $0.element)
-                    }
-                    return Deduction(
-                        kind: .eliminate(elims),
-                        technique: .xWing,
-                        patternCells: corners.sorted(),
-                        keyDigits: CandidateSet(digit: d),
-                        explanation: "X-Wing on \(d) in \(axis) \(lines[i].line + 1) and \(lines[j].line + 1)."
-                    )
-                }
-            }
-        }
-        return nil
-    }
-
     // MARK: - Helpers
 
     /// Indices into `Grid.units` of every unit containing all of `cells`.
@@ -381,6 +406,11 @@ public enum Techniques {
         let digits = set.digits.map(String.init)
         guard digits.count > 1 else { return digits.first ?? "" }
         return digits.dropLast().joined(separator: ", ") + " and " + digits.last!
+    }
+
+    /// "R4C7" — a cell in solver notation.
+    static func cellName(_ i: Int) -> String {
+        "R\(i / 9 + 1)C\(i % 9 + 1)"
     }
 
     static func combinations<T>(of items: [T], choose k: Int) -> [[T]] {

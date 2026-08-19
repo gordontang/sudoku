@@ -172,7 +172,7 @@ import Testing
             overrides[9 + c] = others
             overrides[63 + c] = others
         }
-        let d = Techniques.xWing(Grid(), cands(overrides))
+        let d = Techniques.basicFish(Grid(), cands(overrides), size: 2)
         #expect(d != nil)
         #expect(d!.technique == .xWing)
         #expect(d!.patternCells == [11, 15, 65, 69])

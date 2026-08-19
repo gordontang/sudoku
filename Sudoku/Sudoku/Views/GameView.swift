@@ -84,7 +84,10 @@ private struct GameContentView: View {
     var body: some View {
         VStack(spacing: 12) {
             header
-            hintBanner
+            coachBanner
+            if vm.coachMessage == nil {
+                hintBanner
+            }
             layerBar
             BoardView(vm: vm)
                 .padding(.horizontal, 8)
@@ -324,6 +327,51 @@ private struct GameContentView: View {
         .accessibilityIdentifier(id)
     }
 
+    /// Coach advice: player-paced (no auto-timeout), escalating on request.
+    /// "Tell me more" walks technique name → location → pattern → resolution;
+    /// only the final tier can apply the move for you.
+    @ViewBuilder
+    private var coachBanner: some View {
+        if let message = vm.coachMessage {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "graduationcap.fill")
+                    .foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(message)
+                        .font(.footnote)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if vm.coachCanEscalate || vm.coachCanApply {
+                        HStack(spacing: 16) {
+                            if vm.coachCanEscalate {
+                                Button("Tell me more") { vm.coachEscalate() }
+                                    .accessibilityIdentifier("coach_more")
+                            }
+                            if vm.coachCanApply {
+                                Button("Apply it") { vm.coachApply() }
+                                    .accessibilityIdentifier("coach_apply")
+                            }
+                        }
+                        .font(.footnote.weight(.semibold))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                    }
+                }
+                Spacer()
+                Button {
+                    vm.dismissCoach()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                }
+                .accessibilityLabel("Dismiss advice")
+                .accessibilityIdentifier("coach_dismiss")
+            }
+            .padding(10)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 12)
+        }
+    }
+
     @ViewBuilder
     private var hintBanner: some View {
         if let message = vm.hintMessage {
@@ -447,6 +495,11 @@ private struct GameToolbar: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("pencil")
 
+            // Coach: advice without answers — disabled inside alts, where
+            // hints are too.
+            toolbarButton("Coach", systemImage: "graduationcap", disabled: !vm.layers.isEmpty) {
+                vm.coachAdvise()
+            }
             toolbarButton("Hint", systemImage: "lightbulb") {
                 vm.hint()
             }

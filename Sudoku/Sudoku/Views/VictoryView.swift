@@ -6,6 +6,12 @@ struct VictoryView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        NavigationStack {
+            content
+        }
+    }
+
+    private var content: some View {
         VStack(spacing: 20) {
             Image(systemName: "trophy.fill")
                 .font(.system(size: 56))
@@ -38,6 +44,24 @@ struct VictoryView: View {
             .padding(20)
             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
             .padding(.horizontal, 24)
+
+            // Post-game coaching: stalls, mistakes, and what was available.
+            NavigationLink {
+                ReviewView(
+                    givens: vm.givens,
+                    solution: vm.solution,
+                    difficulty: vm.difficulty,
+                    log: vm.moveLog
+                )
+            } label: {
+                Label("Review Game", systemImage: "magnifyingglass.circle")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            }
+            .buttonStyle(.bordered)
+            .padding(.horizontal, 24)
+            .accessibilityIdentifier("victory_review")
 
             Button {
                 dismiss()

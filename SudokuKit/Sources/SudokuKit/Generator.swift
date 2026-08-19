@@ -58,8 +58,11 @@ public enum Generator {
         }
         let deepDig = difficulty >= .expert
         // Acceptance for deep-dug levels: few enough clues, and hard enough
-        // that the technique solver needs at least this band.
-        let maxClues = difficulty == .master ? 23 : 25
+        // that the technique solver needs at least this band. Master allows
+        // one clue more than it used to: with the full ladder, master means
+        // "requires a master-band technique", and demanding ≤23 clues on top
+        // of that made qualifying puzzles rare enough to stall generation.
+        let maxClues = difficulty == .master ? 24 : 25
         let minRating: Difficulty = difficulty == .master ? .master : .expert
 
         // score = (rating misses acceptance ? 1 : 0, clues over the cap) —

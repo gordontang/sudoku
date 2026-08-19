@@ -247,8 +247,12 @@ enum TechniqueContent {
         TechniqueSection("Getting Unstuck", [strategy]),
         TechniqueSection("Basics", [fullHouse, nakedSingle, hiddenSingle]),
         TechniqueSection("Intermediate", [lockedCandidates, nakedPair, hiddenPair, nakedTriple, hiddenTriple, quadruples]),
-        TechniqueSection("Advanced", [xWing, xyWing]),
-        TechniqueSection("Master Territory", [forcingChains]),
+        TechniqueSection("Advanced", [xWing, skyscraper, twoStringKite, emptyRectangle, xyWing]),
+        TechniqueSection("Master Patterns", [
+            biggerFish, finnedFish, xyzWing, wWing, remotePair,
+            coloring, xChains, uniqueness, alsFamily, aicTopic,
+        ]),
+        TechniqueSection("Last Resort", [forcingChains]),
     ]
 
     static let strategy = TechniqueTopic(
@@ -263,8 +267,9 @@ enum TechniqueContent {
             "Fill complete candidates: long-press the Pencil button so every empty cell shows exactly its legal digits. Advanced techniques only work with complete, accurate notes.",
             "Sweep singles: any cell with one candidate, any digit with one home in a row, column, or box.",
             "Select a number (or tap one of its placements) to light up its coverage — the rows, columns, and boxes it already rules out — and every cell where it's still penciled. Scan digits 1–9 this way. (The Covered Cells setting picks whether coverage comes from every placement or just the selected cell.)",
-            "Hunt eliminations: Locked Candidates, then pairs, triples, and quadruples, then X-Wing and XY-Wing. After each elimination, re-sweep singles.",
-            "Still stuck? That's chain territory — add an Alt and test a candidate (see Forcing Chains).",
+            "Hunt eliminations: Locked Candidates, then pairs, triples, and quadruples, then fish, single-digit patterns, and wings. After each elimination, re-sweep singles.",
+            "Stuck with honest notes? Ask the Coach — it names the cheapest available technique and reveals more only when you ask: name, then location, then the pattern itself.",
+            "When even the coach says the patterns have run out, that's chain territory — add an Alt and test a candidate (see Forcing Chains).",
         ]
     )
 
@@ -554,6 +559,236 @@ enum TechniqueContent {
             keyDigits: [5],
             caption: "The pivot {2,7} sees wings {2,5} and {5,7}. If pivot=2 the left wing is 5; if pivot=7 the top wing is 5. Either way a 5 lands where the red cell can see it — its 5 is dead."
         )
+    )
+
+    static let skyscraper = TechniqueTopic(
+        name: "Skyscraper",
+        tagline: "Two strong links, one shared base",
+        description: """
+        Find a digit with exactly two spots in each of two rows, where one \
+        spot of each shares a column — two towers on a common base. If the \
+        base cell of one tower is false, its roof is true; the bases can't \
+        both be true, so at least one roof holds the digit. The digit dies \
+        in every cell that sees both roofs. Works with columns too.
+        """,
+        steps: [
+            "Select the digit to light up its remaining spots.",
+            "Two rows with exactly two spots each, sharing one column: the shared column is the base, the other two spots the roofs.",
+            "Erase the digit wherever both roofs are visible (same row, column, or box).",
+        ]
+    )
+
+    static let twoStringKite = TechniqueTopic(
+        name: "2-String Kite & Turbot Fish",
+        tagline: "A row link and a column link tied in a box",
+        description: """
+        Take a digit with exactly two spots in a row and exactly two in a \
+        column, one end of each sitting in the same box. Those box ends \
+        can't both be true; the logic ripples outward and the two far ends \
+        can't both be false — so the cell seeing both far ends can't hold \
+        the digit. Variants that use a box's own strong link are called \
+        Turbot Fish; the reasoning is identical.
+        """,
+        steps: [
+            "Hunt digits with exactly two spots in a unit — these strong links are the raw material for every chain pattern.",
+            "Find a row link and a column link whose near ends share a box.",
+            "Erase the digit from the cell at the intersection of the two far ends.",
+        ]
+    )
+
+    static let emptyRectangle = TechniqueTopic(
+        name: "Empty Rectangle",
+        tagline: "A box whose candidates form a cross",
+        description: """
+        When all of a digit's candidates in a box sit on one row and one \
+        column (a cross), then wherever the digit lands in the box, it \
+        covers that row or that column. Combine with a strong link in an \
+        outside line pointing at the cross: one specific cell closing the \
+        rectangle can never hold the digit.
+        """,
+        steps: [
+            "Per box and digit, check whether the candidates collapse onto a row+column cross.",
+            "Find a two-spot line for the digit with one end on the cross's column (or row).",
+            "The cell aligned with the link's other end and the cross's row (or column) loses the digit.",
+        ]
+    )
+
+    static let biggerFish = TechniqueTopic(
+        name: "Swordfish & Jellyfish",
+        tagline: "X-Wing, one and two sizes up",
+        description: """
+        The X-Wing's logic scales: three rows where a digit fits in only \
+        the same three columns trap the digit (Swordfish); four rows and \
+        four columns make a Jellyfish. The rows needn't each use all the \
+        columns — coverage can be partial, as with naked triples. Erase \
+        the digit from those columns everywhere outside the defining rows.
+        """,
+        steps: [
+            "Work one digit at a time with full notes.",
+            "List rows with 2–3 (or 2–4) spots; look for three (four) rows whose spots union to exactly three (four) columns.",
+            "Erase the digit from those columns outside the chosen rows. Swap rows and columns and repeat.",
+        ]
+    )
+
+    static let finnedFish = TechniqueTopic(
+        name: "Finned Fish",
+        tagline: "A fish with a loose end",
+        description: """
+        An almost-X-Wing (or Swordfish/Jellyfish) with one or two extra \
+        candidates — fins — spoiling the pattern. If the fins all share a \
+        box, the fish still works, but only near the fins: either the \
+        clean fish logic holds, or a fin is true — and both cases kill the \
+        digit in the cover columns *inside the fin's box*.
+        """,
+        steps: [
+            "Spot a would-be fish with one spare candidate hanging off a base row.",
+            "Check the spare (fin) shares a box with some of the fish's cover cells.",
+            "Erase the digit from cover cells inside that box only.",
+        ]
+    )
+
+    static let xyzWing = TechniqueTopic(
+        name: "XYZ-Wing",
+        tagline: "An XY-Wing whose pivot keeps the Z",
+        description: """
+        Like the XY-Wing, but the pivot holds all three digits {X, Y, Z}. \
+        One of the three cells must be Z — but now the pivot is a \
+        candidate too, so only cells seeing *all three* (pivot and both \
+        wings) lose their Z. Tighter eliminations, easier to overlook.
+        """,
+        steps: [
+            "Find a three-candidate cell whose box or lines hold two bivalue cells covering its digits.",
+            "The digit shared by both wings is Z.",
+            "Erase Z only from cells that see the pivot and both wings.",
+        ]
+    )
+
+    static let wWing = TechniqueTopic(
+        name: "W-Wing",
+        tagline: "Twin bivalue cells joined by a strong link",
+        description: """
+        Two cells with the same two candidates {X, Y} that don't see each \
+        other, plus a strong link on Y whose ends see one twin each: if \
+        either twin were Y, the link forces the other to X. So one of the \
+        twins is X — and X dies wherever both twins are seen.
+        """,
+        steps: [
+            "Collect bivalue cells sharing the same pair.",
+            "For twins that don't see each other, hunt a two-spot unit for one of their digits bridging them.",
+            "Erase the other digit from every cell seeing both twins.",
+        ]
+    )
+
+    static let remotePair = TechniqueTopic(
+        name: "Remote Pair",
+        tagline: "A chain of identical pairs",
+        description: """
+        A chain of cells all holding the same pair {X, Y}, each seeing the \
+        next, must alternate X, Y, X, Y… Any two chain cells an odd number \
+        of steps apart hold different digits between them — so both X and \
+        Y die in any cell that sees both. A naked pair, stretched across \
+        the board.
+        """,
+        steps: [
+            "Find four or more same-pair bivalue cells linked into a chain.",
+            "Color them alternately along the chain.",
+            "Erase both digits from cells seeing two opposite-colored chain cells.",
+        ]
+    )
+
+    static let coloring = TechniqueTopic(
+        name: "Coloring",
+        tagline: "Paint a digit's strong links in two colors",
+        description: """
+        For one digit, connect every unit that has exactly two spots — in \
+        each such pair, exactly one end is true. Painting the network in \
+        two alternating colors makes the whole cluster binary: one color \
+        is entirely true, the other entirely false. Two same-colored cells \
+        sharing a unit kill that whole color; any outside candidate seeing \
+        both colors dies either way. Multi-coloring plays two clusters \
+        against each other with the same logic.
+        """,
+        steps: [
+            "Pick a digit; link up its two-spot units into clusters.",
+            "Alternate colors along every link.",
+            "Same color twice in one unit → that color is false everywhere. A candidate seeing both colors → false.",
+        ]
+    )
+
+    static let xChains = TechniqueTopic(
+        name: "X-Chain & XY-Chain",
+        tagline: "Alternating chains, one digit or many",
+        description: """
+        An X-Chain walks a single digit through alternating strong and \
+        weak links; with strong links at both ends, one end must be true, \
+        so the digit dies wherever both ends are seen. An XY-Chain does \
+        the same through bivalue cells: each cell passes its other digit \
+        to the next, and if the chain's first and last cells both offer \
+        the same digit Z, one of them is Z. The Skyscraper, Kite, and \
+        Remote Pair are all short chains in disguise.
+        """,
+        steps: [
+            "Strong link = a unit with exactly two spots (or a cell with exactly two candidates).",
+            "Chain them: strong, weak, strong… starting and ending strong.",
+            "Erase the chain's digit from every cell seeing both ends.",
+        ]
+    )
+
+    static let uniqueness = TechniqueTopic(
+        name: "Uniqueness Arguments",
+        tagline: "The puzzle has one solution — exploit it",
+        description: """
+        Four cells on two rows, two columns, and two boxes that could all \
+        reduce to the same two digits form a deadly rectangle: swapping \
+        the pair would give a second solution. A proper puzzle can't \
+        contain one, so whatever would create it is false. The Unique \
+        Rectangle family reads this in many ways (extra candidates must \
+        survive, roof cells can't take the pair); BUG+1 applies the same \
+        idea board-wide: if placing one candidate would leave every cell \
+        with two, that candidate must be true.
+        """,
+        steps: [
+            "Watch for rectangles over exactly two boxes with matching pair candidates in the corners.",
+            "Three bare-pair corners? The fourth sheds the pair (Type 1). Extras concentrated on one digit? It survives near the roof (Type 2).",
+            "All cells down to pairs except one? BUG+1: the odd candidate out is true.",
+        ]
+    )
+
+    static let alsFamily = TechniqueTopic(
+        name: "ALS & Sue de Coq",
+        tagline: "Sets one candidate short of locked",
+        description: """
+        An Almost Locked Set is k cells of a unit holding k+1 digits — one \
+        elimination away from a naked subset. Tie two of them together \
+        with a restricted common digit (one that can't be in both) and at \
+        most one set can lose it: the other locks, and any digit common to \
+        both dies where it sees every copy in both sets (ALS-XZ). Sue de \
+        Coq does the same bookkeeping in a box–line intersection.
+        """,
+        steps: [
+            "Bivalue cells are size-1 ALSs — every wing you know is secretly ALS logic.",
+            "Find two cell groups (different units) each holding one digit more than their size.",
+            "A shared digit whose copies all see each other is the link; other shared digits die where they see all copies in both groups.",
+        ]
+    )
+
+    static let aicTopic = TechniqueTopic(
+        name: "Alternating Inference Chains",
+        tagline: "The general chain — every pattern's ancestor",
+        description: """
+        Chains over candidates: a strong link means "if not this, then \
+        that" (a cell's other candidate, a digit's other spot); a weak \
+        link means "if this, then not that". Alternate them, starting and \
+        ending strong, and the chain proves its two ends can't both be \
+        false. Anything incompatible with both ends is dead. X-Chains, \
+        XY-Chains, wings, and remote pairs are all special cases — this \
+        is the full instrument.
+        """,
+        steps: [
+            "The coach draws these when it finds one: solid lines are strong links, dashed are weak.",
+            "Read a chain as: NOT end A forces end B, step by step.",
+            "Any candidate that a true end would kill — from either end — can be erased.",
+        ]
     )
 
     static let forcingChains = TechniqueTopic(

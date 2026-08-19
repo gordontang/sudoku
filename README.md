@@ -7,8 +7,10 @@ no accounts.
 ## Layout
 
 - **`SudokuKit/`** — pure-logic Swift package: puzzle generator, human-technique
-  solver (singles → locked candidates → pairs → triples → X-Wing), difficulty
-  rater, and hint engine. No UIKit/SwiftUI dependencies.
+  solver (a 37-technique ladder: singles → locked candidates → subsets → fish →
+  single-digit patterns → wings → uniqueness → coloring → chains → ALS → AIC),
+  difficulty rater, hint engine, and coach engine. No UIKit/SwiftUI
+  dependencies.
 - **`Sudoku/`** — SwiftUI + SwiftData app. The Xcode project uses a
   file-system-synchronized group, so adding a Swift file to `Sudoku/Sudoku/`
   is all it takes — no project-file edits.
@@ -16,7 +18,20 @@ no accounts.
 ## Features
 
 - **Difficulty is honest**: puzzles are rated by the solving techniques actually
-  required, not clue count. Master puzzles stall the logical solver.
+  required, not clue count. Master puzzles demand master-band techniques
+  (swordfish and beyond, uniqueness arguments, chains) — or stall the whole
+  ladder.
+- **Coach**: on-request advice that teaches instead of answering. Each request
+  reveals only as much as you ask for — technique name, then where to look,
+  then the pattern itself (highlighted on the board, chains drawn
+  candidate-to-candidate), and only at the last step the full resolution. It
+  also calls out wrong entries and stale notes before advising.
+- **Game review**: after a win, a move-by-move analysis finds where you
+  stalled and what was available at that moment, and classifies each wrong
+  entry as a misread vs. a guess — every moment replayable on a board
+  snapshot with the engine's finding highlighted.
+- **Technique guide**: an in-app reference covering the full ladder, from
+  Full House to Alternating Inference Chains, with worked examples.
 - **Pencil marks**: toggle pencil mode; placing a digit auto-clears that digit
   from peers' notes (undo restores them). Long-press Pencil fills all
   candidates.
