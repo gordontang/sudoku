@@ -245,8 +245,8 @@ private struct MiniGridLines: Shape {
 enum TechniqueContent {
     static let sections: [TechniqueSection] = [
         TechniqueSection("Getting Unstuck", [strategy]),
-        TechniqueSection("Basics", [nakedSingle, hiddenSingle]),
-        TechniqueSection("Intermediate", [lockedCandidates, nakedPair, hiddenPair, nakedTriple]),
+        TechniqueSection("Basics", [fullHouse, nakedSingle, hiddenSingle]),
+        TechniqueSection("Intermediate", [lockedCandidates, nakedPair, hiddenPair, nakedTriple, hiddenTriple, quadruples]),
         TechniqueSection("Advanced", [xWing, xyWing]),
         TechniqueSection("Master Territory", [forcingChains]),
     ]
@@ -263,9 +263,33 @@ enum TechniqueContent {
             "Fill complete candidates: long-press the Pencil button so every empty cell shows exactly its legal digits. Advanced techniques only work with complete, accurate notes.",
             "Sweep singles: any cell with one candidate, any digit with one home in a row, column, or box.",
             "Select a number (or tap one of its placements) to light up its coverage — the rows, columns, and boxes it already rules out — and every cell where it's still penciled. Scan digits 1–9 this way. (The Covered Cells setting picks whether coverage comes from every placement or just the selected cell.)",
-            "Hunt eliminations: Locked Candidates, then pairs and triples, then X-Wing and XY-Wing. After each elimination, re-sweep singles.",
+            "Hunt eliminations: Locked Candidates, then pairs, triples, and quadruples, then X-Wing and XY-Wing. After each elimination, re-sweep singles.",
             "Still stuck? That's chain territory — add an Alt and test a candidate (see Forcing Chains).",
         ]
+    )
+
+    static let fullHouse = TechniqueTopic(
+        name: "Full House",
+        tagline: "The last empty cell of a unit",
+        description: """
+        A row, column, or box with eight digits placed has exactly one gap — \
+        and the one missing digit fills it. The friendliest deduction there \
+        is, and worth actively scanning for: every placement can complete a \
+        unit somewhere else.
+        """,
+        steps: [
+            "After each placement, glance at the row, column, and box it touched.",
+            "Any of them down to a single gap? Count which digit is missing and place it.",
+        ],
+        example: TechniqueExample(
+            values: String(repeating: "0", count: 27)
+                + "000123000" + "000406000" + "000789000"
+                + String(repeating: "0", count: 27),
+            marks: [40: [5]],
+            pattern: [40],
+            keyDigits: [5],
+            caption: "The center box holds every digit but 5 — its last cell takes it."
+        )
     )
 
     static let nakedSingle = TechniqueTopic(
@@ -273,19 +297,20 @@ enum TechniqueContent {
         tagline: "A cell with only one candidate left",
         description: """
         When a cell's row, column, and box together contain eight different \
-        digits, only one digit can still go there. With full pencil marks \
-        these cells show a single note — place it immediately.
+        digits, only one digit can still go there — even though no single \
+        unit is anywhere near complete. With full pencil marks these cells \
+        show a single note — place it immediately.
         """,
         steps: [
             "Scan for cells showing exactly one pencil mark.",
             "Place the digit; the eliminations it causes often create new naked singles.",
         ],
         example: TechniqueExample(
-            values: "000000000000000000000000000000000000123406789000000000000000000000000000000000000",
-            marks: [40: [5]],
+            values: "000050000000060000000000000000700000123000400000008000000000000000000000000000000",
+            marks: [40: [9]],
             pattern: [40],
-            keyDigits: [5],
-            caption: "Row 5 already holds 1, 2, 3, 4, 6, 7, 8, and 9 — the middle cell can only be 5."
+            keyDigits: [9],
+            caption: "No unit is close to done, but the row rules out 1–4, the column 5 and 6, and the box 7 and 8 — only 9 fits."
         )
     )
 
@@ -349,6 +374,10 @@ enum TechniqueContent {
         must take those two digits between them — which one goes where is \
         unknown, but no other cell in the unit can have either digit. Erase \
         both digits from the rest of the unit.
+
+        When the two cells sit in a box–line intersection they form a Locked \
+        Pair: the digits die in the rest of the row (or column) *and* the \
+        rest of the box at once — twice the eliminations for the same find.
         """,
         steps: [
             "Look for two cells in a row, column, or box showing the identical two marks.",
@@ -408,10 +437,65 @@ enum TechniqueContent {
         spoken for, and can be erased from the unit's other cells. The cells \
         don't each need all three digits — {2,6}, {2,9}, {6,9} is a valid \
         triple on {2, 6, 9}.
+
+        Three such cells inside a box–line intersection are a Locked Triple, \
+        clearing the rest of both the line and the box in one step.
         """,
         steps: [
             "In a unit with several two- and three-candidate cells, test whether three of them cover only three digits in total.",
             "Erase those digits from the rest of the unit.",
+        ]
+    )
+
+    static let hiddenTriple = TechniqueTopic(
+        name: "Hidden Triple",
+        tagline: "Three digits confined to the same three cells",
+        description: """
+        If three digits each fit only within the same three cells of a unit, \
+        those cells belong to the trio — every other candidate in them can be \
+        erased. Like the naked triple, coverage can be partial: each digit \
+        just has to stay inside the three cells, not appear in all of them. \
+        The hardest of the intermediate patterns to see, because the cells \
+        look busy and nothing about them stands out.
+        """,
+        steps: [
+            "Work digit by digit: for each unit, note the digits confined to three or fewer cells.",
+            "Three digits sharing the same three-cell home? Erase everything else from those cells.",
+            "Hunt where pencil marks are dense — hidden subsets hide in clutter.",
+        ],
+        example: TechniqueExample(
+            marks: [
+                18: [1, 2, 7, 8],
+                19: [2, 3, 7, 8],
+                20: [1, 3, 7, 8],
+                21: [4, 5, 6],
+                22: [4, 6, 9],
+                23: [5, 9],
+                24: [6, 7, 9],
+                25: [4, 8, 9],
+                26: [5, 6, 7],
+            ],
+            pattern: [18, 19, 20],
+            keyDigits: [1, 2, 3],
+            caption: "In row 3, digits 1, 2, and 3 fit nowhere but the first three cells. The trio claims them — the 7s and 8s cluttering those cells can be erased."
+        )
+    )
+
+    static let quadruples = TechniqueTopic(
+        name: "Quadruples",
+        tagline: "Pairs and triples, one size bigger",
+        description: """
+        Both subset patterns extend to four: four cells covering only four \
+        digits (naked quadruple) let you erase those digits from the rest of \
+        the unit, and four digits confined to four cells (hidden quadruple) \
+        empty those cells of everything else. Rare — a naked quadruple in \
+        one unit is always paired with a hidden set in the rest of it, so \
+        whichever half is smaller is easier to spot.
+        """,
+        steps: [
+            "Look in units with few placed digits — quadruples need room.",
+            "Four cells whose candidates union to four digits: erase those digits elsewhere in the unit.",
+            "Four digits whose homes union to four cells: erase the other candidates from those cells.",
         ]
     )
 

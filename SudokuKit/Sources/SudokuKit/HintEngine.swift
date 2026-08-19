@@ -3,6 +3,12 @@ public struct Hint: Sendable {
     public let digit: UInt8
     public let technique: Technique
     public let explanation: String
+    /// Cells forming the justifying pattern (see `Deduction.patternCells`).
+    public let patternCells: [Int]
+    /// Home unit of the pattern, as an index into `Grid.units`.
+    public let unit: Int?
+    /// The digits the pattern reasons about.
+    public let keyDigits: CandidateSet
 }
 
 public enum HintEngine {
@@ -24,7 +30,10 @@ public enum HintEngine {
                     cell: cell,
                     digit: digit,
                     technique: deduction.technique,
-                    explanation: deduction.explanation
+                    explanation: deduction.explanation,
+                    patternCells: deduction.patternCells,
+                    unit: deduction.unit,
+                    keyDigits: deduction.keyDigits
                 )
             case .eliminate:
                 Solver.apply(deduction, to: &g, candidates: &cands)
