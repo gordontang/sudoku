@@ -106,8 +106,8 @@ extension Techniques {
                     let xs2 = b.cells.filter { cands[$0].contains(digit: x) }
                     guard xs1.allSatisfy({ p in xs2.allSatisfy { sees[p][$0] } }) else { continue }
                     for z in commons.digits where z != x {
-                        let zs = a.cells.filter { cands[$0].contains(digit: z) }
-                            + b.cells.filter { cands[$0].contains(digit: z) }
+                        let zs = a.cells.sorted().filter { cands[$0].contains(digit: z) }
+                            + b.cells.sorted().filter { cands[$0].contains(digit: z) }
                         var elims: [(Int, CandidateSet)] = []
                         for i in 0..<81 where grid.cells[i] == 0 && !a.cells.contains(i) && !b.cells.contains(i)
                             && cands[i].contains(digit: z) {
