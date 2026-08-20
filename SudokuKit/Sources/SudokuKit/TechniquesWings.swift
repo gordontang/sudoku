@@ -31,7 +31,7 @@ extension Techniques {
                                     keyDigits: CandidateSet(digits: [a, b, z]),
                                     patternCandidates: [CandidateRef(cell: w1, digit: z), CandidateRef(cell: w2, digit: z)],
                                     secondaryCandidates: [CandidateRef(cell: pivot, digit: a), CandidateRef(cell: pivot, digit: b)],
-                                    explanation: "XY-Wing: pivot \(cellName(pivot)) {\(a),\(b)} sees wings \(cellName(w1)) and \(cellName(w2)) — either way one wing becomes \(z), so \(z) dies where both are seen."
+                                    reasoning: "\(cellName(pivot)) can only be \(a) or \(b). If it's \(a), then \(cellName(w1)) (which can see it) loses its \(a) and becomes a \(z). If it's \(b), then \(cellName(w2)) loses its \(b) and becomes a \(z). Either way, one of those two wing cells ends up as a \(z), so any cell that sees both wings can't be a \(z)."
                                 )
                             }
                         }
@@ -68,7 +68,7 @@ extension Techniques {
                         patternCells: [pivot, w1, w2].sorted(),
                         keyDigits: cands[pivot],
                         patternCandidates: [pivot, w1, w2].sorted().map { CandidateRef(cell: $0, digit: z) },
-                        explanation: "XYZ-Wing: \(cellName(pivot)) with its wings \(cellName(w1)) and \(cellName(w2)) must produce a \(z) among them — \(z) dies wherever all three are seen."
+                        reasoning: "\(cellName(pivot)) can be \(digitList(cands[pivot])), and its two wings \(cellName(w1)) and \(cellName(w2)) each hold \(z) plus one of the pivot's other digits. Whatever the pivot turns out to be, one of these three cells has to end up as a \(z): if the pivot is \(z), done; if it's either other digit, it knocks that digit out of one wing, leaving that wing as \(z). So a cell that sees all three of them can't be a \(z)."
                     )
                 }
             }
@@ -114,7 +114,7 @@ extension Techniques {
                                         ChainLink(from: refs(s, d), to: refs(t, d), isStrong: true),
                                         ChainLink(from: refs(t, d), to: refs(b, d), isStrong: false),
                                     ],
-                                    explanation: "W-Wing: \(cellName(a)) and \(cellName(b)) both hold {\(x),\(y)}; the strong link on \(d) at \(cellName(s))–\(cellName(t)) means one of them must be \(other) — it dies where both are seen."
+                                    reasoning: "\(cellName(a)) and \(cellName(b)) both hold exactly {\(x), \(y)}, and they don't see each other. Between them sit the only two spots for a \(d) in one unit, \(cellName(s)) and \(cellName(t)), one of which sees each of the pair cells. If \(cellName(a)) were the \(d), \(cellName(s)) couldn't be, so \(cellName(t)) would be, and \(cellName(b)) would have to be a \(other). The same works from the other side. So at least one of \(cellName(a)) and \(cellName(b)) is a \(other), and any cell that sees both can't be."
                                 )
                             }
                         }
@@ -176,7 +176,7 @@ extension Techniques {
                         keyDigits: pair,
                         patternCandidates: stride(from: 0, to: chain.count, by: 2).map { CandidateRef(cell: chain[$0], digit: ds[0]) },
                         secondaryCandidates: stride(from: 1, to: chain.count, by: 2).map { CandidateRef(cell: chain[$0], digit: ds[0]) },
-                        explanation: "Remote Pair on {\(ds[0]),\(ds[1])}: the chain alternates the two digits, so its ends hold different ones — both digits die where both ends are seen."
+                        reasoning: "The highlighted cells all hold exactly {\(ds[0]), \(ds[1])}, and each one sees the next, so along the chain they must alternate: \(ds[0]), \(ds[1]), \(ds[0]), \(ds[1])… The two ends, \(cellName(chain.first!)) and \(cellName(chain.last!)), are an odd number of steps apart, so they hold different digits, and between them they use up both \(ds[0]) and \(ds[1]). A cell that sees both ends can't hold either."
                     )
                 }
             }
@@ -233,7 +233,7 @@ extension Techniques {
                         patternCells: chain.sorted(),
                         keyDigits: CandidateSet(digit: zz),
                         patternCandidates: [CandidateRef(cell: chain.first!, digit: zz), CandidateRef(cell: chain.last!, digit: zz)],
-                        explanation: "XY-Chain: following the bivalue cells from \(cellName(chain.first!)) to \(cellName(chain.last!)), one end must be a \(zz) — it dies wherever both are seen."
+                        reasoning: "Every cell in the chain has just two candidates. Suppose \(cellName(chain.first!)) is not a \(zz): then it takes its other digit, which knocks that digit out of the next cell along, which settles that cell, and so on down the line, until \(cellName(chain.last!)) is forced to be a \(zz). So one of the two ends is a \(zz), whichever way it goes, and any cell that sees both ends can't be."
                     )
                 }
             }

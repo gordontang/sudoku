@@ -120,7 +120,7 @@ extension Techniques {
                         patternCandidates: stride(from: 0, to: refs.count, by: 2).map { refs[$0] },
                         secondaryCandidates: stride(from: 1, to: refs.count, by: 2).map { refs[$0] },
                         links: links,
-                        explanation: "Chain: either \(cellName(a.cell)) is a \(a.digit) or \(cellName(z.cell)) is a \(z.digit) — every step in between is forced. Anything incompatible with both ends is false."
+                        reasoning: "Follow the chain from \(cellName(a.cell)) to \(cellName(z.cell)). Solid links mean \"if not this, then that\": the only other candidate in a cell, or the only other spot for a digit in a unit. Dashed links mean \"if this, then not that\": two candidates that can't both be true. Suppose \(cellName(a.cell)) is not a \(a.digit): each link forces the next step, and the chain ends with \(cellName(z.cell)) being a \(z.digit). So at least one end is true, and any candidate that would be knocked out by either end is impossible."
                     )
                 }
                 if expansions > budget { return nil }

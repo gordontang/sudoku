@@ -10,7 +10,7 @@ extension Techniques {
             let boxSet = Set(Grid.units[18 + b])
             for u in 0..<18 {
                 let lineSet = Set(Grid.units[u])
-                let inter = boxSet.intersection(lineSet).filter { grid.cells[$0] == 0 }.sorted()
+                let inter = boxSet.intersection(lineSet).filter { grid.cells[$0] == 0 && !cands[$0].isEmpty }.sorted()
                 guard inter.count >= 2 else { continue }
                 let lineOnly = lineSet.subtracting(boxSet).sorted()
                 let boxOnly = boxSet.subtracting(lineSet).sorted()
@@ -50,7 +50,7 @@ extension Techniques {
                                         patternCells: (cells + [la, bc]).sorted(),
                                         unit: u,
                                         keyDigits: v,
-                                        explanation: "Sue de Coq: the \(Grid.unitName(u))/Box \(b + 1) intersection cells plus \(cellName(la)) and \(cellName(bc)) consume the digits \(digitList(v)) between them, pinning where each can go."
+                                        reasoning: "Where \(Grid.unitName(u)) crosses Box \(b + 1), the cells \(cellList(cells)) hold \(v.count) different candidates between them: \(digitList(v)). That's two more digits than cells. \(cellName(la)) (in the line) holds \(digitList(aset)) and \(cellName(bc)) (in the box) holds \(digitList(cset)), with nothing in common. Count it up: the \(cells.count + 2) cells together must hold all \(v.count) of those digits exactly once, so \(digitList(aset)) are used up between the line and the crossing, and \(digitList(cset)) between the box and the crossing. No other cell in the line or box can take one of its share."
                                     )
                                 }
                             }
@@ -72,7 +72,9 @@ extension Techniques {
         var result: [ALS] = []
         var seen = Set<Set<Int>>()
         for unit in Grid.units {
-            let empty = unit.filter { grid.cells[$0] == 0 }
+            // A cell with no candidates at all (only possible on a broken or
+            // illustrative board) can't be part of a set.
+            let empty = unit.filter { grid.cells[$0] == 0 && !cands[$0].isEmpty }
             for k in 1...maxSize where empty.count >= k {
                 for cells in combinations(of: empty, choose: k) {
                     var digits = CandidateSet()
@@ -123,7 +125,7 @@ extension Techniques {
                                 keyDigits: CandidateSet(digits: [x, z]),
                                 patternCandidates: zs.sorted().map { CandidateRef(cell: $0, digit: z) },
                                 secondaryCandidates: (xs1.sorted() + xs2.sorted()).map { CandidateRef(cell: $0, digit: x) },
-                                explanation: "ALS-XZ: the two almost-locked sets are tied together by \(x) — at most one can lose it, so one of them locks and \(z) dies wherever it sees every \(z) of both."
+                                reasoning: "Here are two groups of cells that are each one digit short of a locked set: \(cellList(a.cells.sorted())) \(a.cells.count == 1 ? "holds" : "hold") \(digitList(a.digits))\(a.cells.count == 1 ? "" : " between them"), and \(cellList(b.cells.sorted())) \(b.cells.count == 1 ? "holds" : "hold") \(digitList(b.digits)). Every \(x) in the first group sees every \(x) in the second, so only one group can actually contain the \(x). Whichever group loses it becomes a locked set, and a locked set uses up all its remaining digits, including its \(z). So one group or the other definitely holds a \(z), and a cell that sees every \(z) in both groups can't be one."
                             )
                         }
                     }

@@ -59,7 +59,7 @@ extension Techniques {
                                     ChainLink(from: refs(e1), to: refs(e2), isStrong: false),
                                     ChainLink(from: refs(e2), to: refs(f2), isStrong: true),
                                 ],
-                                explanation: "\(technique.displayName) on \(d): the two strong links guarantee \(cellName(f1)) or \(cellName(f2)) is a \(d), so \(d) dies wherever both are seen."
+                                reasoning: "\(Grid.unitName(ua)) has only two places left for a \(d) (\(cellName(f1)) and \(cellName(e1))), and so does \(Grid.unitName(ub)) (\(cellName(e2)) and \(cellName(f2))). \(cellName(e1)) and \(cellName(e2)) see each other, so they can't both be \(d)s. That means at least one of the far ends, \(cellName(f1)) or \(cellName(f2)), must be a \(d), and any cell that sees both of them can't be."
                             )
                         }
                     }
@@ -109,7 +109,7 @@ extension Techniques {
                                     keyDigits: CandidateSet(digit: d),
                                     patternCandidates: pos.map { CandidateRef(cell: $0, digit: d) },
                                     secondaryCandidates: [s, t].map { CandidateRef(cell: $0, digit: d) },
-                                    explanation: "Empty Rectangle on \(d): Box \(b + 1) confines \(d) to one row and column; with the strong link \(cellName(s))–\(cellName(t)), \(cellName(target)) can't be a \(d)."
+                                    reasoning: "In Box \(b + 1), every remaining \(d) sits in Row \(erRow + 1) or Column \(erCol + 1), so wherever the box's \(d) lands it will cover one of those two lines. \(Grid.unitName(u)) has only two places for a \(d), \(cellName(s)) and \(cellName(t)). Try both: if \(cellName(t)) is the \(d), \(cellName(target)) can't be (they share a line). If \(cellName(s)) is the \(d) instead, it blocks one arm of the box's cross, forcing the box's \(d) onto the other arm, which also sees \(cellName(target))."
                                 )
                             }
                         }
@@ -188,7 +188,7 @@ extension Techniques {
                         patternCandidates: stride(from: 0, to: refs.count, by: 2).map { refs[$0] },
                         secondaryCandidates: stride(from: 1, to: refs.count, by: 2).map { refs[$0] },
                         links: links,
-                        explanation: "X-Chain on \(d): following the chain of strong links from \(cellName(chain.first!)) to \(cellName(chain.last!)), one end must be a \(d) — it dies wherever both are seen."
+                        reasoning: "Follow the \(d)s from \(cellName(chain.first!)) to \(cellName(chain.last!)). Each solid link joins the only two spots for a \(d) in some row, column, or box, so if one end isn't a \(d), the other must be. Each dashed link joins two \(d)s that see each other, so if one is a \(d), the other isn't. Start by supposing \(cellName(chain.first!)) is not a \(d) and the chain forces \(cellName(chain.last!)) to be one. So one of the two ends is a \(d), whichever it is."
                     )
                 }
             }
@@ -255,7 +255,7 @@ extension Techniques {
                             keyDigits: CandidateSet(digit: d),
                             patternCandidates: a,
                             secondaryCandidates: b,
-                            explanation: "Simple Colors on \(d): two same-colored cells share a unit, so that whole color is false."
+                            reasoning: "For the digit \(d), each solid link joins the only two spots in a row, column, or box, so exactly one end of every link is the real \(d). Painting them in two alternating colors means one whole color is true and the other is entirely false. Here two cells of the same color share a unit, and they can't both be \(d)s. So that color must be the false one, everywhere it appears."
                         )
                     }
                 }
@@ -274,7 +274,7 @@ extension Techniques {
                         keyDigits: CandidateSet(digit: d),
                         patternCandidates: a,
                         secondaryCandidates: b,
-                        explanation: "Simple Colors on \(d): one of the two colors is true, so a \(d) seeing both colors is false either way."
+                        reasoning: "For the digit \(d), each solid link joins the only two spots in a row, column, or box, so exactly one end of every link is the real \(d). Painting them in two alternating colors means one whole color is true and the other is entirely false. A \(d) that sees a cell of each color is ruled out either way: whichever color turns out to be true, it sees a real \(d)."
                     )
                 }
             }
@@ -326,7 +326,7 @@ extension Techniques {
                                     keyDigits: CandidateSet(digit: d),
                                     patternCandidates: c1.keys.sorted().map { CandidateRef(cell: $0, digit: d) },
                                     secondaryCandidates: c2.keys.sorted().map { CandidateRef(cell: $0, digit: d) },
-                                    explanation: "Multi-Colors on \(d): the two color clusters constrain each other — the marked \(d)s can't survive every outcome."
+                                    reasoning: "For the digit \(d), there are two separate clusters of linked cells, each painted in two colors, and in each cluster exactly one color is true. A color from the first cluster touches a color from the second, so those two can't both be true, which means their opposite colors can't both be false. Any \(d) that sees both of those opposite colors is ruled out: at least one of them holds a real \(d)."
                                 )
                             }
                         }

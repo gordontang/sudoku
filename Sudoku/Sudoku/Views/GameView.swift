@@ -70,6 +70,9 @@ private struct GameContentView: View {
     @Bindable var vm: GameViewModel
     let exit: () -> Void
     @State private var showGuide = false
+    /// Navigation path of the guide sheet — seeded with a topic id when the
+    /// coach's "Learn more" opens the guide straight onto a page.
+    @State private var guidePath: [String] = []
     @State private var showLayerDeleteConfirm = false
     @AppStorage(SettingsKeys.showLayerEliminations) private var showLayerEliminations = true
     @AppStorage(SettingsKeys.mistakeMode) private var mistakeModeRaw = MistakeMode.instantSolution.rawValue
@@ -109,8 +112,8 @@ private struct GameContentView: View {
                 .accessibilityIdentifier("guide")
             }
         }
-        .sheet(isPresented: $showGuide) {
-            NavigationStack {
+        .sheet(isPresented: $showGuide, onDismiss: { guidePath = [] }) {
+            NavigationStack(path: $guidePath) {
                 TechniqueGuideView(isSheet: true)
             }
         }
@@ -328,8 +331,11 @@ private struct GameContentView: View {
     }
 
     /// Coach advice: player-paced (no auto-timeout), escalating on request.
-    /// "Tell me more" walks technique name → location → pattern → resolution;
-    /// only the final tier can apply the move for you.
+    /// "Tell me more" walks technique name → location → pattern → resolution.
+    /// The coach never enters digits; at full reveal of an elimination it
+    /// offers to erase the disproved notes. "Other moves" browses every
+    /// technique available in the position, and "Learn more" opens the
+    /// guide on the technique's page.
     @ViewBuilder
     private var coachBanner: some View {
         if let message = vm.coachMessage {
@@ -340,15 +346,50 @@ private struct GameContentView: View {
                     Text(message)
                         .font(.footnote)
                         .fixedSize(horizontal: false, vertical: true)
-                    if vm.coachCanEscalate || vm.coachCanApply {
-                        HStack(spacing: 16) {
-                            if vm.coachCanEscalate {
-                                Button("Tell me more") { vm.coachEscalate() }
-                                    .accessibilityIdentifier("coach_more")
+                    if !vm.coachOptions.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            // Row 1: advance this piece of advice.
+                            HStack(spacing: 16) {
+                                if vm.coachCanEscalate {
+                                    Button("Tell me more") { vm.coachEscalate() }
+                                        .accessibilityIdentifier("coach_more")
+                                }
+                                if vm.coachCanEraseNotes {
+                                    Button("Erase those notes") { vm.coachEraseNotes() }
+                                        .accessibilityIdentifier("coach_erase")
+                                }
                             }
-                            if vm.coachCanApply {
-                                Button("Apply it") { vm.coachApply() }
-                                    .accessibilityIdentifier("coach_apply")
+                            // Row 2: look sideways — other techniques that
+                            // apply, or the guide page for this one.
+                            HStack(spacing: 16) {
+                                if vm.coachOptions.count > 1 {
+                                    Menu {
+                                        ForEach(Array(vm.coachOptions.enumerated()), id: \.offset) { i, option in
+                                            Button {
+                                                vm.coachSelect(i)
+                                            } label: {
+                                                if i == vm.coachSelectedIndex {
+                                                    Label(option.technique.displayName, systemImage: "checkmark")
+                                                } else {
+                                                    Text(option.technique.displayName)
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        Label("Other moves (\(vm.coachOptions.count))", systemImage: "chevron.up.chevron.down")
+                                            .labelStyle(.titleAndIcon)
+                                    }
+                                    .accessibilityIdentifier("coach_moves")
+                                }
+                                if vm.coachTopic != nil {
+                                    Button("Learn more") {
+                                        if let topic = vm.coachTopic {
+                                            guidePath = [topic.id]
+                                            showGuide = true
+                                        }
+                                    }
+                                    .accessibilityIdentifier("coach_learn")
+                                }
                             }
                         }
                         .font(.footnote.weight(.semibold))

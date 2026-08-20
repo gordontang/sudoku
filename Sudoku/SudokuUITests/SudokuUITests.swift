@@ -147,6 +147,100 @@ final class SudokuUITests: XCTestCase {
         XCTAssertTrue(cell.waitForExistence(timeout: 5), "Game should still be active after closing the guide")
     }
 
+    func testTechniqueGuidePrevNextWalksTheLadder() {
+        let app = launchApp()
+        startEasyGame(app)
+        app.buttons["guide"].tap()
+        let topic = app.staticTexts["Naked Single"]
+        XCTAssertTrue(topic.waitForExistence(timeout: 5))
+        topic.tap()
+        XCTAssertTrue(app.navigationBars["Naked Single"].waitForExistence(timeout: 5))
+        app.buttons["guide_next"].tap()
+        XCTAssertTrue(app.navigationBars["Hidden Single"].waitForExistence(timeout: 5), "Next should move to the following technique")
+        app.buttons["guide_prev"].tap()
+        app.buttons["guide_prev"].tap()
+        XCTAssertTrue(app.navigationBars["Full House"].waitForExistence(timeout: 5), "Previous should walk back up the ladder")
+        // Every page shows an example board and steps.
+        XCTAssertTrue(app.staticTexts["How to use it"].exists)
+        app.buttons["guide_done"].tap()
+        XCTAssertTrue(app.buttons["cell_0_0"].waitForExistence(timeout: 5))
+    }
+
+    /// The coach explains and highlights but never enters a digit: at the
+    /// final tier of a placement there is no apply button, and the board is
+    /// untouched. (On the fixed puzzle the cheapest move is a naked single.)
+    func testCoachExplainsButNeverEntersTheDigit() {
+        let app = launchApp()
+        startEasyGame(app)
+        let target = app.buttons["cell_0_1"] // R1C2, the naked single (4)
+        XCTAssertTrue(target.label.contains("empty"))
+        app.buttons["coach"].tap()
+        let more = app.buttons["coach_more"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5), "Coach should offer to tell more")
+        more.tap() // location
+        more.tap() // pattern: the reasoning, conclusion withheld
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'what does that let you'")).firstMatch.waitForExistence(timeout: 3))
+        more.tap() // resolution
+        let resolution = app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'enter the 4 yourself'")).firstMatch
+        XCTAssertTrue(resolution.waitForExistence(timeout: 3), "Resolution should tell the player to enter the digit themselves")
+        XCTAssertFalse(app.buttons["coach_apply"].exists)
+        XCTAssertFalse(app.buttons["coach_erase"].exists, "Placements are never applied for the player")
+        XCTAssertFalse(more.exists)
+        XCTAssertTrue(target.label.contains("empty"), "Coach must not enter the digit")
+        // The player makes the move.
+        target.tap()
+        app.buttons["digit_4"].tap()
+        XCTAssertTrue(target.label.contains("contains 4"))
+    }
+
+    /// "Other moves" lists every technique available in the position and
+    /// switches the coaching to the chosen one; "Learn more" opens the guide
+    /// straight onto that technique's page.
+    func testCoachBrowsesOtherMovesAndOpensGuide() {
+        let app = launchApp()
+        startEasyGame(app)
+        app.buttons["coach"].tap()
+        let moves = app.buttons["coach_moves"]
+        XCTAssertTrue(moves.waitForExistence(timeout: 5), "Several techniques apply on the fixed puzzle")
+        moves.tap()
+        let hidden = app.buttons["Hidden Single"].firstMatch
+        XCTAssertTrue(hidden.waitForExistence(timeout: 5), "Menu should list the other techniques")
+        hidden.tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'Hidden Single here'")).firstMatch.waitForExistence(timeout: 3))
+        app.buttons["coach_learn"].tap()
+        XCTAssertTrue(app.navigationBars["Hidden Single"].waitForExistence(timeout: 5), "Learn more should open the guide on the technique's page")
+        XCTAssertTrue(app.staticTexts["How to use it"].exists)
+        app.buttons["guide_done"].tap()
+        XCTAssertTrue(app.buttons["cell_0_0"].waitForExistence(timeout: 5))
+    }
+
+    /// At full reveal of an elimination the coach offers to erase the
+    /// disproved notes — housekeeping on request, not the answer.
+    func testCoachErasesNotesOnlyOnRequest() {
+        let app = launchApp()
+        startEasyGame(app)
+        // Give R2C2 a note the Locked Candidates elimination will remove.
+        let victim = app.buttons["cell_1_1"]
+        victim.tap()
+        app.buttons["pencil"].tap()
+        app.buttons["digit_4"].tap()
+        XCTAssertTrue(victim.label.contains("notes 4"), "got: \(victim.label)")
+        app.buttons["pencil"].tap()
+        app.buttons["coach"].tap()
+        XCTAssertTrue(app.buttons["coach_moves"].waitForExistence(timeout: 5))
+        app.buttons["coach_moves"].tap()
+        let locked = app.buttons["Locked Candidates"].firstMatch
+        XCTAssertTrue(locked.waitForExistence(timeout: 5))
+        locked.tap()
+        let more = app.buttons["coach_more"]
+        more.tap(); more.tap(); more.tap()
+        let erase = app.buttons["coach_erase"]
+        XCTAssertTrue(erase.waitForExistence(timeout: 3), "Eliminations offer to erase the notes")
+        XCTAssertTrue(victim.label.contains("notes 4"), "Nothing changes until asked")
+        erase.tap()
+        XCTAssertTrue(victim.label.contains("empty"), "got: \(victim.label)")
+    }
+
     func testEraseClearsCell() {
         let app = launchApp()
         let cell = startEasyGame(app)

@@ -54,7 +54,10 @@ public struct Deduction: Sendable {
     public let secondaryCandidates: [CandidateRef]
     /// Chain links for rendering, in order.
     public let links: [ChainLink]
-    public let explanation: String
+    /// Why the pattern forces something — plain language, no conclusion.
+    /// The coach shows this before revealing what to do, so the player can
+    /// draw the conclusion themselves.
+    public let reasoning: String
 
     public init(
         kind: Kind,
@@ -65,7 +68,7 @@ public struct Deduction: Sendable {
         patternCandidates: [CandidateRef] = [],
         secondaryCandidates: [CandidateRef] = [],
         links: [ChainLink] = [],
-        explanation: String
+        reasoning: String
     ) {
         self.kind = kind
         self.technique = technique
@@ -75,7 +78,41 @@ public struct Deduction: Sendable {
         self.patternCandidates = patternCandidates
         self.secondaryCandidates = secondaryCandidates
         self.links = links
-        self.explanation = explanation
+        self.reasoning = reasoning
+    }
+
+    /// What the pattern lets you do, as one plain sentence: the placement,
+    /// or which notes to erase where.
+    public var conclusion: String {
+        switch kind {
+        case .place(let cell, let digit):
+            return "So \(Techniques.cellName(cell)) must be a \(digit)."
+        case .eliminate(let elims):
+            // Group cells by the digits they lose, so "4 and 9 from R5C2 and
+            // R5C9" reads as one clause instead of one clause per cell.
+            var groups: [(digits: CandidateSet, cells: [Int])] = []
+            for (cell, digits) in elims {
+                if let i = groups.firstIndex(where: { $0.digits == digits }) {
+                    groups[i].cells.append(cell)
+                } else {
+                    groups.append((digits, [cell]))
+                }
+            }
+            let clauses = groups.map { group -> String in
+                let names = Techniques.cellList(group.cells)
+                let count = group.digits.count
+                return "\(count == 1 ? "the " : "")\(Techniques.digitList(group.digits)) from \(names)"
+            }
+            let list = clauses.count > 1
+                ? clauses.dropLast().joined(separator: ", ") + ", and " + clauses.last!
+                : clauses[0]
+            return "So you can erase \(list)."
+        }
+    }
+
+    /// Reasoning and conclusion together — the full explanation.
+    public var explanation: String {
+        "\(reasoning) \(conclusion)"
     }
 
     /// Cells that lose candidates (empty for placements).
@@ -163,7 +200,7 @@ public enum Techniques {
                 patternCells: [emptyCell],
                 unit: u,
                 keyDigits: CandidateSet(digit: d),
-                explanation: "R\(emptyCell / 9 + 1)C\(emptyCell % 9 + 1) is the last empty cell of \(Grid.unitName(u)) — it takes the \(d)."
+                reasoning: "\(Grid.unitName(u)) has just one empty cell left, \(cellName(emptyCell)), and \(d) is the only digit that unit is still missing."
             )
         }
         return nil
@@ -177,7 +214,7 @@ public enum Techniques {
                 technique: .nakedSingle,
                 patternCells: [i],
                 keyDigits: CandidateSet(digit: d),
-                explanation: "R\(i / 9 + 1)C\(i % 9 + 1) has only one possible digit: \(d)."
+                reasoning: "Look at \(cellName(i)): between its row, column, and box, every digit except \(d) is already taken."
             )
         }
         return nil
@@ -201,7 +238,7 @@ public enum Techniques {
                         patternCells: [found],
                         unit: u,
                         keyDigits: CandidateSet(digit: d),
-                        explanation: "\(Grid.unitName(u)) has only one place left for a \(d)."
+                        reasoning: "\(Grid.unitName(u)) still needs a \(d), and \(cellName(found)) is the only cell in it where a \(d) can still go."
                     )
                 }
             }
@@ -233,7 +270,7 @@ public enum Techniques {
                             patternCells: positions,
                             unit: 18 + b,
                             keyDigits: CandidateSet(digit: d),
-                            explanation: "In Box \(b + 1), \(d) is confined to Row \(r + 1), so it can be removed elsewhere in that row."
+                            reasoning: "Inside Box \(b + 1), every place a \(d) can still go is in Row \(r + 1). The box has to get its \(d) from one of those cells, and that uses up the row's \(d)."
                         )
                     }
                 }
@@ -249,7 +286,7 @@ public enum Techniques {
                             patternCells: positions,
                             unit: 18 + b,
                             keyDigits: CandidateSet(digit: d),
-                            explanation: "In Box \(b + 1), \(d) is confined to Column \(c + 1), so it can be removed elsewhere in that column."
+                            reasoning: "Inside Box \(b + 1), every place a \(d) can still go is in Column \(c + 1). The box has to get its \(d) from one of those cells, and that uses up the column's \(d)."
                         )
                     }
                 }
@@ -275,7 +312,7 @@ public enum Techniques {
                             patternCells: positions,
                             unit: u,
                             keyDigits: CandidateSet(digit: d),
-                            explanation: "In \(Grid.unitName(u)), \(d) is confined to Box \(b + 1), so it can be removed elsewhere in that box."
+                            reasoning: "In \(Grid.unitName(u)), every place a \(d) can still go falls inside Box \(b + 1). The line has to get its \(d) from one of those cells, and that uses up the box's \(d)."
                         )
                     }
                 }
@@ -326,16 +363,17 @@ public enum Techniques {
                     default: .nakedQuad
                     }
                     let digits = digitList(union)
-                    let explanation = locked
-                        ? "\(technique.displayName) (\(digits)) sits in \(homes.map(Grid.unitName).joined(separator: " and ")) — those digits can be removed from the rest of both units."
-                        : "\(technique.displayName) (\(digits)) in \(Grid.unitName(u)) removes those digits from other cells."
+                    let cellNames = cellList(combo)
+                    let reasoning = locked
+                        ? "\(cellNames) only have \(digits) as candidates between them, and they sit in both \(homes.map(Grid.unitName).joined(separator: " and ")). Those \(size) cells will use up those \(size) digits, so no other cell in either unit can take one."
+                        : "In \(Grid.unitName(u)), \(cellNames) only have \(digits) as candidates between them. Those \(size) cells will use up those \(size) digits, so no other cell in the unit can take one."
                     return Deduction(
                         kind: .eliminate(elims),
                         technique: technique,
                         patternCells: combo,
                         unit: u,
                         keyDigits: union,
-                        explanation: explanation
+                        reasoning: reasoning
                     )
                 }
             }
@@ -382,7 +420,7 @@ public enum Techniques {
                         patternCells: cells.sorted(),
                         unit: u,
                         keyDigits: subset,
-                        explanation: "Digits \(digitList(subset)) can only go in \(cellWord) cells of \(Grid.unitName(u)), so those cells hold nothing else."
+                        reasoning: "In \(Grid.unitName(u)), the digits \(digitList(subset)) can only go in \(cellWord) cells: \(cellList(cells.sorted())). Those cells have to hold those digits, which leaves no room for anything else in them."
                     )
                 }
             }
@@ -411,6 +449,13 @@ public enum Techniques {
     /// "R4C7" — a cell in solver notation.
     static func cellName(_ i: Int) -> String {
         "R\(i / 9 + 1)C\(i % 9 + 1)"
+    }
+
+    /// "R4C7, R4C8 and R6C1" — cells joined for prose.
+    static func cellList(_ cells: [Int]) -> String {
+        let names = cells.map(cellName)
+        guard names.count > 1 else { return names.first ?? "" }
+        return names.dropLast().joined(separator: ", ") + " and " + names.last!
     }
 
     static func combinations<T>(of items: [T], choose k: Int) -> [[T]] {

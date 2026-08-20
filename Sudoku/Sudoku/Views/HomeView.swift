@@ -15,7 +15,9 @@ enum Route: Hashable {
 
 struct HomeView: View {
     @Query private var savedGames: [SavedGame]
-    @State private var path: [Route] = []
+    // Untyped so the technique guide (pushed as `.guide`) can push its own
+    // pages by topic id on top.
+    @State private var path = NavigationPath()
     @State private var trainingStore = TrainingStore()
     @AppStorage(SettingsKeys.appearance) private var appearanceRaw = AppearanceMode.auto.rawValue
 
@@ -78,7 +80,7 @@ struct HomeView: View {
             .onAppear {
                 // UI-test/screenshot hook: jump straight into a game.
                 if ProcessInfo.processInfo.arguments.contains("-uitest-autostart"), path.isEmpty {
-                    path.append(.newGame(.easy))
+                    path.append(Route.newGame(.easy))
                 }
             }
             .navigationDestination(for: Route.self) { route in

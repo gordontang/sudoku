@@ -52,14 +52,16 @@ extension Techniques {
                         }.sorted()
                         let technique = fishName(size, finned: false)
                         let axis = rowBased ? "rows" : "columns"
+                        let crossAxis = rowBased ? "columns" : "rows"
                         let baseNames = base.sorted().map { "\($0 + 1)" }.joined(separator: ", ")
+                        let coverNames = covers.sorted().map { "\($0 + 1)" }.joined(separator: ", ")
                         return Deduction(
                             kind: .eliminate(elims),
                             technique: technique,
                             patternCells: corners,
                             keyDigits: CandidateSet(digit: d),
                             patternCandidates: corners.map { CandidateRef(cell: $0, digit: d) },
-                            explanation: "\(technique.displayName) on \(d) in \(axis) \(baseNames): the digit is trapped in \(size) \(rowBased ? "columns" : "rows"), so it dies elsewhere in them."
+                            reasoning: "In \(axis) \(baseNames), the only places a \(d) can still go are all in \(crossAxis) \(coverNames). Each of those \(size) \(axis) needs its own \(d), and between them they will use up the \(d) in every one of those \(size) \(crossAxis). No other cell in those \(crossAxis) can be a \(d)."
                         )
                     }
                 }
@@ -113,6 +115,13 @@ extension Techniques {
                                 crosses.filter { coverSet.contains($0) }.map { index(line, $0) }
                             }.sorted()
                             let technique = fishName(size, finned: true)
+                            let axis = rowBased ? "rows" : "columns"
+                            let crossAxis = rowBased ? "columns" : "rows"
+                            let baseNames = base.sorted().map { "\($0 + 1)" }.joined(separator: ", ")
+                            let coverNames = covers.sorted().map { "\($0 + 1)" }.joined(separator: ", ")
+                            let baseFish = fishName(size, finned: false).displayName
+                            let article = baseFish.hasPrefix("X") ? "an" : "a"
+                            let finWord = fins.count == 1 ? "the fin" : "the fins"
                             return Deduction(
                                 kind: .eliminate(elims),
                                 technique: technique,
@@ -120,7 +129,7 @@ extension Techniques {
                                 keyDigits: CandidateSet(digit: d),
                                 patternCandidates: corners.map { CandidateRef(cell: $0, digit: d) },
                                 secondaryCandidates: fins.sorted().map { CandidateRef(cell: $0, digit: d) },
-                                explanation: "\(technique.displayName) on \(d): the fish's spare candidates (fins) all sit in Box \(finBox + 1), so the eliminations survive only there."
+                                reasoning: "In \(axis) \(baseNames), the \(d)s almost make \(article) \(baseFish) on \(crossAxis) \(coverNames), except for the extra \(fins.count == 1 ? "candidate" : "candidates") at \(cellList(fins.sorted())) (\(finWord)). Either a fin is a \(d), or none is and the clean \(baseFish) holds. A \(d) inside Box \(finBox + 1) that sits in \(crossAxis) \(coverNames) is ruled out in both cases: it sees \(finWord), and it's in the fish's cover."
                             )
                         }
                     }
