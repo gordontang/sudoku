@@ -248,7 +248,7 @@ public enum TechniqueGuide {
 
     // MARK: Getting unstuck
 
-    static let strategy = TechniqueTopic(
+    public static let strategy = TechniqueTopic(
         name: "Working a Hard Puzzle",
         tagline: "What to try, and in what order, when nothing jumps out",
         summary: "A routine for hard puzzles: fill in your pencil marks, sweep for singles, then hunt for eliminations from cheapest to dearest.",
@@ -276,7 +276,7 @@ public enum TechniqueGuide {
 
     // MARK: Basics
 
-    static let fullHouse = TechniqueTopic(
+    public static let fullHouse = TechniqueTopic(
         name: "Full House",
         tagline: "The last empty cell in a row, column, or box",
         summary: "A row, column, or box with only one empty cell left — the one missing digit goes there.",
@@ -303,7 +303,7 @@ public enum TechniqueGuide {
         techniques: [.fullHouse]
     )
 
-    static let nakedSingle = TechniqueTopic(
+    public static let nakedSingle = TechniqueTopic(
         name: "Naked Single",
         tagline: "A cell with only one candidate left",
         summary: "A cell where only one digit can still go, because its row, column, and box between them already contain the other eight.",
@@ -328,7 +328,7 @@ public enum TechniqueGuide {
         techniques: [.nakedSingle]
     )
 
-    static let hiddenSingle = TechniqueTopic(
+    public static let hiddenSingle = TechniqueTopic(
         name: "Hidden Single",
         tagline: "A digit with only one place left in a row, column, or box",
         summary: "A digit that fits in only one cell of a row, column, or box — so that cell must take it, whatever else it could have been.",
@@ -357,7 +357,7 @@ public enum TechniqueGuide {
 
     // MARK: Intermediate
 
-    static let lockedCandidates = TechniqueTopic(
+    public static let lockedCandidates = TechniqueTopic(
         name: "Locked Candidates",
         tagline: "A box pins a digit to one row or column",
         summary: "All of a digit's candidates in a box sit in one row or column, so the digit can't appear elsewhere in that row or column.",
@@ -392,7 +392,7 @@ public enum TechniqueGuide {
         techniques: [.lockedCandidates]
     )
 
-    static let nakedPair = TechniqueTopic(
+    public static let nakedPair = TechniqueTopic(
         name: "Naked Pair",
         tagline: "Two cells that share the same two candidates",
         summary: "Two cells in one row, column, or box that both show exactly the same two candidates — those two digits are used up, so no other cell there can take either.",
@@ -428,7 +428,7 @@ public enum TechniqueGuide {
         techniques: [.nakedPair, .lockedPair]
     )
 
-    static let hiddenPair = TechniqueTopic(
+    public static let hiddenPair = TechniqueTopic(
         name: "Hidden Pair",
         tagline: "Two digits that only fit in the same two cells",
         summary: "Two digits that can each go in only the same two cells of a row, column, or box — those cells must hold that pair, so their other candidates go.",
@@ -462,7 +462,7 @@ public enum TechniqueGuide {
         techniques: [.hiddenPair]
     )
 
-    static let nakedTriple = TechniqueTopic(
+    public static let nakedTriple = TechniqueTopic(
         name: "Naked Triple",
         tagline: "Three cells that share three digits between them",
         summary: "Three cells in one row, column, or box whose candidates add up to only three digits — those digits are used up, so no other cell there can take them.",
@@ -495,7 +495,7 @@ public enum TechniqueGuide {
         techniques: [.nakedTriple, .lockedTriple]
     )
 
-    static let hiddenTriple = TechniqueTopic(
+    public static let hiddenTriple = TechniqueTopic(
         name: "Hidden Triple",
         tagline: "Three digits that only fit in the same three cells",
         summary: "Three digits that can each go only within the same three cells of a row, column, or box — those cells belong to the trio, so everything else in them goes.",
@@ -534,7 +534,7 @@ public enum TechniqueGuide {
         techniques: [.hiddenTriple]
     )
 
-    static let quadruples = TechniqueTopic(
+    public static let quadruples = TechniqueTopic(
         name: "Quadruples",
         tagline: "Pairs and triples, one size bigger",
         summary: "Four cells sharing only four digits (naked), or four digits confined to four cells (hidden) — the same idea as pairs and triples, one size up.",
@@ -571,7 +571,7 @@ public enum TechniqueGuide {
 
     // MARK: Advanced
 
-    static let xWing = TechniqueTopic(
+    public static let xWing = TechniqueTopic(
         name: "X-Wing",
         tagline: "A rectangle that traps one digit",
         summary: "One digit has only two places in each of two rows, and those places line up in the same two columns — so the digit can be erased from those columns everywhere else.",
@@ -605,7 +605,7 @@ public enum TechniqueGuide {
         techniques: [.xWing]
     )
 
-    static let skyscraper = TechniqueTopic(
+    public static let skyscraper = TechniqueTopic(
         name: "Skyscraper",
         tagline: "Two towers of one digit on a shared base",
         summary: "One digit has only two places in each of two rows, and one place from each shares a column — so at least one of the two other places must be the digit.",
@@ -642,7 +642,7 @@ public enum TechniqueGuide {
         techniques: [.skyscraper]
     )
 
-    static let twoStringKite = TechniqueTopic(
+    public static let twoStringKite = TechniqueTopic(
         name: "2-String Kite & Turbot Fish",
         tagline: "A row link and a column link tied together in a box",
         summary: "One digit has only two places in a row and only two in a column, with one end of each in the same box — so a cell that sees the other two ends can't be the digit.",
@@ -677,7 +677,7 @@ public enum TechniqueGuide {
         techniques: [.twoStringKite, .turbotFish]
     )
 
-    static let emptyRectangle = TechniqueTopic(
+    public static let emptyRectangle = TechniqueTopic(
         name: "Empty Rectangle",
         tagline: "A box whose candidates for a digit form a cross",
         summary: "In one box, a digit's candidates all lie on one row and one column; paired with a two-spot line elsewhere, that rules the digit out of one specific cell.",
@@ -713,7 +713,7 @@ public enum TechniqueGuide {
         techniques: [.emptyRectangle]
     )
 
-    static let xyWing = TechniqueTopic(
+    public static let xyWing = TechniqueTopic(
         name: "XY-Wing",
         tagline: "Three two-candidate cells, one shared victim",
         summary: "A cell with two candidates sees two other two-candidate cells that each share one of its digits and one common third digit — one wing must end up as that third digit.",
@@ -752,7 +752,7 @@ public enum TechniqueGuide {
 
     // MARK: Master patterns
 
-    static let biggerFish = TechniqueTopic(
+    public static let biggerFish = TechniqueTopic(
         name: "Swordfish & Jellyfish",
         tagline: "The X-Wing, one and two sizes up",
         summary: "One digit's spots in three rows all fall in the same three columns (Swordfish), or four rows in four columns (Jellyfish) — the digit comes off those columns everywhere else.",
@@ -788,7 +788,7 @@ public enum TechniqueGuide {
         techniques: [.swordfish, .jellyfish]
     )
 
-    static let finnedFish = TechniqueTopic(
+    public static let finnedFish = TechniqueTopic(
         name: "Finned Fish",
         tagline: "An X-Wing (or bigger) with one loose end",
         summary: "An almost-X-Wing with one spare candidate spoiling it — if the spare sits in a box with some of the fish's cover cells, the eliminations still hold inside that box.",
@@ -825,7 +825,7 @@ public enum TechniqueGuide {
         techniques: [.finnedXWing, .finnedSwordfish, .finnedJellyfish]
     )
 
-    static let xyzWing = TechniqueTopic(
+    public static let xyzWing = TechniqueTopic(
         name: "XYZ-Wing",
         tagline: "An XY-Wing whose pivot keeps the third digit",
         summary: "Like an XY-Wing, but the pivot holds all three digits — so only cells that see the pivot and both wings lose the shared digit.",
@@ -862,7 +862,7 @@ public enum TechniqueGuide {
         techniques: [.xyzWing]
     )
 
-    static let wWing = TechniqueTopic(
+    public static let wWing = TechniqueTopic(
         name: "W-Wing",
         tagline: "Twin two-candidate cells joined by a strong link",
         summary: "Two cells with the same two candidates that don't see each other, bridged by a two-spot line on one of the digits — one twin must be the other digit.",
@@ -897,7 +897,7 @@ public enum TechniqueGuide {
         techniques: [.wWing]
     )
 
-    static let remotePair = TechniqueTopic(
+    public static let remotePair = TechniqueTopic(
         name: "Remote Pair",
         tagline: "A chain of cells all holding the same pair",
         summary: "A chain of cells all showing the same two candidates, each seeing the next — the digits must alternate along it, so its far ends hold different digits.",
@@ -929,7 +929,7 @@ public enum TechniqueGuide {
         techniques: [.remotePair]
     )
 
-    static let coloring = TechniqueTopic(
+    public static let coloring = TechniqueTopic(
         name: "Coloring",
         tagline: "Paint one digit's strong links in two colours",
         summary: "For one digit, chain together every row, column, and box with only two spots, and paint the spots in two alternating colours — one colour is entirely true, the other entirely false.",
@@ -969,7 +969,7 @@ public enum TechniqueGuide {
         techniques: [.simpleColors, .multiColors]
     )
 
-    static let xChains = TechniqueTopic(
+    public static let xChains = TechniqueTopic(
         name: "X-Chain & XY-Chain",
         tagline: "Chains of links, on one digit or through two-candidate cells",
         summary: "A chain that alternates strong and weak links, starting and ending strong — one end must be true, so anything that sees both ends is false.",
@@ -1023,7 +1023,7 @@ public enum TechniqueGuide {
         techniques: [.xChain, .xyChain]
     )
 
-    static let uniqueness = TechniqueTopic(
+    public static let uniqueness = TechniqueTopic(
         name: "Uniqueness Arguments",
         tagline: "The puzzle has exactly one solution — use that",
         summary: "Four cells on two rows, two columns, and two boxes can't all end up as the same two digits (that would give the puzzle two solutions), so whatever would cause that is false.",
@@ -1064,7 +1064,7 @@ public enum TechniqueGuide {
         techniques: [.uniqueRectangle, .hiddenRectangle, .avoidableRectangle, .bugPlusOne]
     )
 
-    static let alsFamily = TechniqueTopic(
+    public static let alsFamily = TechniqueTopic(
         name: "ALS & Sue de Coq",
         tagline: "Groups of cells one digit short of locked",
         summary: "Two groups of cells that are each one digit short of a locked set, tied together by a digit that can only be in one of them — the other group locks, and a second shared digit is ruled out where it sees both.",
@@ -1104,7 +1104,7 @@ public enum TechniqueGuide {
         techniques: [.alsXZ, .sueDeCoq]
     )
 
-    static let aicTopic = TechniqueTopic(
+    public static let aicTopic = TechniqueTopic(
         name: "Alternating Inference Chains",
         tagline: "The general chain that every pattern descends from",
         summary: "A chain over individual candidates, alternating \"if not this, then that\" with \"if this, then not that\" — its two ends can't both be false.",
@@ -1145,7 +1145,7 @@ public enum TechniqueGuide {
 
     // MARK: Last resort
 
-    static let forcingChains = TechniqueTopic(
+    public static let forcingChains = TechniqueTopic(
         name: "Forcing Chains & Alts",
         tagline: "Test a candidate on a what-if sheet",
         summary: "When patterns run out: assume one candidate, follow the consequences on an Alt sheet, and see whether it breaks the puzzle.",
