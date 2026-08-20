@@ -23,10 +23,15 @@ no accounts.
   (swordfish and beyond, uniqueness arguments, chains) — or stall the whole
   ladder.
 - **Coach**: on-request advice that teaches instead of answering. Each request
-  reveals only as much as you ask for — technique name, then where to look,
-  then the pattern itself (highlighted on the board, chains drawn
-  candidate-to-candidate), and only at the last step the full resolution. It
-  also calls out wrong entries and stale notes before advising.
+  reveals only as much as you ask for — technique name (with a one-line gist),
+  then where to look, then the pattern with the reasoning spelled out in plain
+  language (highlighted on the board, chains drawn candidate-to-candidate),
+  and only at the last step the conclusion. The coach never enters a digit:
+  placements are yours to make; disproved notes can be erased on request.
+  "Other moves" lists every technique that applies in the position, not just
+  the cheapest, so you can practise the one you're learning; "Learn more"
+  opens the guide on that technique's page. It also calls out wrong entries
+  and stale notes before advising.
 - **Training**: a lesson for every technique on the ladder, in curriculum
   order. Each one reads the technique, steps through a worked example (revealed
   the way the coach would — name → location → pattern → resolution), then drops
@@ -41,7 +46,11 @@ no accounts.
   entry as a misread vs. a guess — every moment replayable on a board
   snapshot with the engine's finding highlighted.
 - **Technique guide**: an in-app reference covering the full ladder, from
-  Full House to Alternating Inference Chains, with worked examples.
+  Full House to Alternating Inference Chains, in plain language, with an
+  example board on every page and Previous/Next to walk the ladder. The
+  content lives in `SudokuKit` (`TechniqueGuide.swift`) so its example boards
+  are checked against the real technique finders by the package tests — the
+  highlights and chain links on each page are what the engine actually sees.
 - **Pencil marks**: toggle pencil mode; placing a digit auto-clears that digit
   from peers' notes (undo restores them). The Auto Pencil button (or a
   long-press on Pencil) notes every valid candidate in every empty cell —

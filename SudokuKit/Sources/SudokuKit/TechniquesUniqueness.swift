@@ -42,7 +42,7 @@ extension Techniques {
                         technique: .uniqueRectangle,
                         patternCells: corners.sorted(),
                         keyDigits: pair,
-                        explanation: "Unique Rectangle on {\(x),\(y)}: \(note) — otherwise the rectangle could complete two ways and the puzzle would have two solutions."
+                        reasoning: "The four highlighted cells sit on two rows, two columns, and two boxes, and all four could take \(x) or \(y). If they ended up holding only those two digits, you could swap the \(x)s and \(y)s and get a second valid solution, and a proper puzzle has just one. So the rectangle can never close up that way. Here, \(note)."
                     )
                 }
 
@@ -50,7 +50,7 @@ extension Techniques {
                     let roof = roofs[0]
                     let extra = cands[roof].intersection(pair)
                     if !extra.isEmpty {
-                        return result([(roof, pair)], "three corners are down to the bare pair, so \(cellName(roof)) can't be either digit")
+                        return result([(roof, pair)], "three corners are already down to just \(x) and \(y), so the fourth, \(cellName(roof)), must be something else")
                     }
                 }
                 guard floors.count == 2, roofs.count == 2 else { continue }
@@ -67,7 +67,7 @@ extension Techniques {
                         elims.append((i, CandidateSet(digit: z)))
                     }
                     if !elims.isEmpty {
-                        return result(elims, "one roof cell must take the extra \(z)")
+                        return result(elims, "the two roof cells carry one extra digit, \(z), and one of them has to actually be that \(z), so any cell that sees both roof cells can't be")
                     }
                 }
                 let shared = containingUnits(of: [r1, r2])
@@ -89,7 +89,7 @@ extension Techniques {
                                     if !rem.isEmpty { elims.append((i, rem)) }
                                 }
                                 if !elims.isEmpty {
-                                    return result(elims, "the roof's extra digits pair up with \(k) other cell\(k == 1 ? "" : "s") of \(Grid.unitName(u)) into a subset")
+                                    return result(elims, "one roof cell has to take one of the roof's extra digits, so the two roof cells together act like a single cell holding those extras, and that cell forms a naked subset with \(k) other cell\(k == 1 ? "" : "s") of \(Grid.unitName(u))")
                                 }
                             }
                         }
@@ -103,7 +103,7 @@ extension Techniques {
                             let elims = [r1, r2].filter { cands[$0].contains(digit: drop) }
                                 .map { ($0, CandidateSet(digit: drop)) }
                             if !elims.isEmpty {
-                                return result(elims, "\(keep) must land in one roof cell, so neither can be \(drop)")
+                                return result(elims, "a \(keep) has to land in one of the two roof cells, so neither roof cell can be \(drop) (that would leave the other roof as \(keep) and complete the deadly pattern)")
                             }
                         }
                     }
@@ -129,7 +129,7 @@ extension Techniques {
                             let elims = roofs.filter { cands[$0].contains(digit: d) }
                                 .map { ($0, CandidateSet(digit: d)) }
                             if !elims.isEmpty {
-                                return result(elims, "\(d) is confined to the rectangle's own rows and columns, forcing it onto the floor diagonal")
+                                return result(elims, "the \(d) has nowhere to go in the rectangle's rows and columns except the rectangle itself, which forces it onto the two floor cells and leaves the roof cells without it")
                             }
                         }
                     }
@@ -165,7 +165,7 @@ extension Techniques {
                                 technique: .hiddenRectangle,
                                 patternCells: corners.sorted(),
                                 keyDigits: pair,
-                                explanation: "Hidden Rectangle on {\(x),\(y)}: if \(cellName(opp)) were \(drop), the \(keep)s would complete the deadly rectangle — impossible in a unique puzzle."
+                                reasoning: "The four highlighted cells form a rectangle across two boxes, and \(cellName(floor)) is already down to just \(x) and \(y). In the row and column of the opposite corner, \(cellName(opp)), the only places left for a \(keep) are inside the rectangle. Suppose \(cellName(opp)) were a \(drop): then \(cellName(floor)) would be a \(keep), and the two remaining corners would both have to be \(keep)s too, giving a rectangle of only \(x)s and \(y)s that could be swapped into a second solution. A proper puzzle has one solution, so that can't happen."
                             )
                         }
                     }
@@ -195,7 +195,7 @@ extension Techniques {
                     technique: .avoidableRectangle,
                     patternCells: [p1, p2, p3, target].sorted(),
                     keyDigits: CandidateSet(digits: [a, grid.cells[p2]]),
-                    explanation: "Avoidable Rectangle: with \(cellName(p1)), \(cellName(p2)) and \(cellName(p3)) all solved (none given), a \(a) at \(cellName(target)) would make the rectangle swappable — the puzzle would have had two solutions."
+                    reasoning: "\(cellName(p1)), \(cellName(p2)) and \(cellName(p3)) are all digits you placed, not givens, and they form three corners of a rectangle across two boxes: a \(a) opposite two \(grid.cells[p2])s. If \(cellName(target)) were also a \(a), those four cells could be swapped around into a second valid solution, and a proper puzzle has only one."
                 )
             }
         }
@@ -239,7 +239,7 @@ extension Techniques {
                     technique: .bugPlusOne,
                     patternCells: [tri],
                     keyDigits: CandidateSet(digit: z),
-                    explanation: "BUG+1: without the \(z), every remaining cell would pair up into a pattern with two solutions — so \(cellName(tri)) must be \(z)."
+                    reasoning: "Every empty cell on the board has exactly two candidates except \(cellName(tri)), which has three. Take away its \(z) and every remaining digit would appear exactly twice in every row, column, and box, a position that always has two solutions. A proper puzzle has one, so the \(z) has to be the real one."
                 )
             }
         }

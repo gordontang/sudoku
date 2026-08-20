@@ -6,13 +6,13 @@ enum CoachPhrasing {
     /// "Where to look" for a deduction: its home unit when it has one,
     /// otherwise the digit(s) it reasons about.
     static func locationHint(for d: Deduction) -> String {
+        let digits = d.keyDigits.count == 1
+            ? "the digit \(d.keyDigits.first!)"
+            : "the digits \(digitPhrase(d.keyDigits))"
         if let unit = d.unit {
-            return "Look at \(Grid.unitName(unit))."
+            return "Look at \(Grid.unitName(unit)), and at \(digits) in particular. Selecting a digit lights up everywhere it can still go."
         }
-        if let digit = d.keyDigits.first, d.keyDigits.count == 1 {
-            return "It involves the digit \(digit) — select a \(digit) on the board to light up its coverage."
-        }
-        return "It involves digits \(digitPhrase(d.keyDigits))."
+        return "It's about \(digits). Select one on the board to light up its coverage and its remaining spots, and look for the shape."
     }
 
     static func digitPhrase(_ set: CandidateSet) -> String {

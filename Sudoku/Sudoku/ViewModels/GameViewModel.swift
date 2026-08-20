@@ -86,8 +86,14 @@ final class GameViewModel {
     }
 
     struct CoachState {
-        var deduction: Deduction
+        /// Every technique that applies right now, cheapest first — the
+        /// player can browse past the obvious singles to whatever else the
+        /// position holds.
+        var options: [Deduction]
+        var index: Int
         var tier: CoachTier
+
+        var deduction: Deduction { options[index] }
     }
 
     private(set) var coach: CoachState?
@@ -398,8 +404,9 @@ final class GameViewModel {
             return
         }
 
-        if let deduction = CoachEngine.nextDeduction(for: values, givens: givens) {
-            coach = CoachState(deduction: deduction, tier: .technique)
+        let options = CoachEngine.availableDeductions(for: values, givens: givens)
+        if !options.isEmpty {
+            coach = CoachState(options: options, index: 0, tier: .technique)
             applyCoachTier()
         } else {
             coach = nil
@@ -407,6 +414,27 @@ final class GameViewModel {
             coachMessage = "No standard pattern cracks this position — it's chain territory. Add an Alt and test one candidate of a two-candidate cell."
         }
         Haptics.light()
+    }
+
+    /// Switch the advice to another technique available in this position.
+    /// Starts that technique's reveal ladder from the top.
+    func coachSelect(_ index: Int) {
+        guard var state = coach, state.options.indices.contains(index), index != state.index else { return }
+        state.index = index
+        state.tier = .technique
+        coach = state
+        log(.advice, digit: 1)
+        applyCoachTier()
+        Haptics.light()
+    }
+
+    /// The techniques available right now, for the "other moves" picker.
+    var coachOptions: [Deduction] { coach?.options ?? [] }
+    var coachSelectedIndex: Int { coach?.index ?? 0 }
+
+    /// The guide page for the technique being coached.
+    var coachTopic: TechniqueTopic? {
+        coach.flatMap { TechniqueGuide.topic(for: $0.deduction.technique) }
     }
 
     /// "Tell me more": reveal the next tier of the current advice.
@@ -423,67 +451,62 @@ final class GameViewModel {
         coach.map { $0.tier < .resolution } ?? false
     }
 
-    var coachCanApply: Bool {
-        coach?.tier == .resolution
+    /// At full reveal, eliminations can be tidied for you (they're notes the
+    /// pattern proved impossible, not the answer). Placements never are —
+    /// seeing the pattern is the coaching; entering the digit is your move.
+    var coachCanEraseNotes: Bool {
+        guard let state = coach, state.tier == .resolution else { return false }
+        if case .eliminate = state.deduction.kind { return true }
+        return false
     }
 
     private func applyCoachTier() {
         guard let state = coach else { return }
         let d = state.deduction
+        let name = d.technique.displayName
+        let gist = TechniqueGuide.topic(for: d.technique)?.summary
         switch state.tier {
         case .technique:
             annotations = BoardAnnotations()
-            coachMessage = "There's a \(d.technique.displayName) available. (The book icon explains every technique.)"
+            var text = "There's a \(name) here."
+            if let gist { text += " \(gist)" }
+            if state.options.count > 1 {
+                text += " It's the simplest of \(state.options.count) techniques that work right now — Other moves lists the rest."
+            }
+            coachMessage = text
         case .location:
             annotations = BoardAnnotations(deduction: d, reveal: .location)
             coachMessage = CoachPhrasing.locationHint(for: d)
         case .pattern:
             annotations = BoardAnnotations(deduction: d, reveal: .pattern)
-            coachMessage = "These cells form the \(d.technique.displayName). What does it let you place or remove?"
+            coachMessage = "\(d.reasoning) So what does that let you place or rule out?"
         case .resolution:
             annotations = BoardAnnotations(deduction: d, reveal: .full)
-            coachMessage = d.explanation
+            switch d.kind {
+            case .place(let cell, let digit):
+                coachMessage = "\(d.reasoning) \(d.conclusion) Tap R\(cell / 9 + 1)C\(cell % 9 + 1) and enter the \(digit) yourself."
+            case .eliminate:
+                coachMessage = "\(d.reasoning) \(d.conclusion)"
+            }
         }
     }
 
-    /// At full reveal, do it for the player: a placement counts as a hint;
-    /// eliminations just tidy the notes the pattern proved impossible.
-    func coachApply() {
-        guard let state = coach, state.tier == .resolution, !isGameOver, !isPaused, layers.isEmpty else { return }
-        switch state.deduction.kind {
-        case .place(let cell, let digit):
-            guard givens.cells[cell] == 0 else { break }
-            hintsUsed += 1
-            selected = cell
-            var move = Move(valueChanges: [(cell, values.cells[cell])], pencilChanges: [(cell, pencil[cell])])
-            if AppSettings.autoClearPencil {
-                for p in Grid.peers[cell] where pencil[p].contains(digit: digit) {
-                    move.pencilChanges.append((p, pencil[p]))
-                    pencil[p].remove(digit: digit)
-                }
-            }
-            pencil[cell] = CandidateSet()
-            values.cells[cell] = digit
-            undoStack.append(move)
-            log(.hint, cell: cell, digit: digit)
-            recomputeMistakes()
-            flashCompletedUnits(around: cell)
-        case .eliminate(let elims):
-            var move = Move(valueChanges: [], pencilChanges: [])
-            for (cell, digits) in elims where !pencil[cell].intersection(digits).isEmpty {
-                move.pencilChanges.append((cell, pencil[cell]))
-                pencil[cell].subtract(digits)
-                log(.noteRemove, cell: cell, digit: digits.first ?? 0)
-            }
-            if !move.pencilChanges.isEmpty { undoStack.append(move) }
+    /// At full reveal of an elimination, erase the notes the pattern proved
+    /// impossible — housekeeping, on request. The coach never enters digits:
+    /// a placement is shown and explained, and the player makes the move.
+    func coachEraseNotes() {
+        guard coachCanEraseNotes, let state = coach, !isGameOver, !isPaused, layers.isEmpty,
+              case .eliminate(let elims) = state.deduction.kind else { return }
+        var move = Move(valueChanges: [], pencilChanges: [])
+        for (cell, digits) in elims where !pencil[cell].intersection(digits).isEmpty {
+            move.pencilChanges.append((cell, pencil[cell]))
+            pencil[cell].subtract(digits)
+            log(.noteRemove, cell: cell, digit: digits.first ?? 0)
         }
+        if !move.pencilChanges.isEmpty { undoStack.append(move) }
         dismissCoach()
         Haptics.light()
-        checkCompletion()
         save()
-        if AppSettings.autoApplyAutoComplete && canAutoComplete {
-            autoComplete()
-        }
     }
 
     func dismissCoach() {
