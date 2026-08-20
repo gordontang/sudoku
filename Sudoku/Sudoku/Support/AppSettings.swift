@@ -73,6 +73,7 @@ enum SettingsKeys {
     static let keepScreenOn = "keepScreenOn"
     static let autoApplyAutoComplete = "autoApplyAutoComplete"
     static let appearance = "appearance"
+    static let trainingProgress = "trainingProgress"
 }
 
 /// Read-side access to settings for non-View code. Views bind via @AppStorage

@@ -8,11 +8,15 @@ enum Route: Hashable {
     case stats
     case settings
     case guide
+    case training
+    case lesson(String)
+    case mixedPractice
 }
 
 struct HomeView: View {
     @Query private var savedGames: [SavedGame]
     @State private var path: [Route] = []
+    @State private var trainingStore = TrainingStore()
     @AppStorage(SettingsKeys.appearance) private var appearanceRaw = AppearanceMode.auto.rawValue
 
     private var colorScheme: ColorScheme? {
@@ -44,6 +48,13 @@ struct HomeView: View {
                             }
                         }
                     }
+                }
+
+                Section("Learn") {
+                    NavigationLink(value: Route.training) {
+                        TrainingCard(store: trainingStore)
+                    }
+                    .accessibilityIdentifier("training")
                 }
             }
             .navigationTitle("Sudoku")
@@ -82,9 +93,18 @@ struct HomeView: View {
                     SettingsView()
                 case .guide:
                     TechniqueGuideView()
+                case .training:
+                    TrainingView()
+                case .lesson(let id):
+                    if let lesson = Curriculum.lesson(id: id) {
+                        LessonView(lesson: lesson, store: trainingStore)
+                    }
+                case .mixedPractice:
+                    LessonView(mixedFrom: trainingStore)
                 }
             }
         }
+        .environment(trainingStore)
         .preferredColorScheme(colorScheme)
     }
 
@@ -97,6 +117,38 @@ struct HomeView: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+private struct TrainingCard: View {
+    let store: TrainingStore
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "graduationcap.fill")
+                .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Training")
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var detail: String {
+        let total = Curriculum.lessons.count
+        if store.startedCount == 0 {
+            return "Lessons and drills for every technique, singles to chains"
+        }
+        if store.masteredCount == total {
+            return "All \(total) lessons mastered"
+        }
+        if let next = Curriculum.nextLesson(given: store) {
+            return "\(store.masteredCount) of \(total) mastered · next: \(next.title)"
+        }
+        return "\(store.masteredCount) of \(total) mastered"
     }
 }
 

@@ -75,43 +75,8 @@ public enum Generator {
 
         for attempt in 0..<maxAttempts {
             let solution = fillGrid(using: &rng)
-            var puzzle = solution
-            var clues = 81
-
-            // Dig 180°-rotationally-symmetric pairs in random order.
-            var pairs = Array(0...40)
-            pairs.shuffle(using: &rng)
-            for i in pairs {
-                if clues <= clueFloor { break }
-                let j = 80 - i
-                let targets = i == j ? [i] : [i, j]
-                let saved = targets.map { puzzle.cells[$0] }
-                guard saved.contains(where: { $0 != 0 }) else { continue }
-                for t in targets { puzzle.cells[t] = 0 }
-                if Solver.countSolutions(puzzle, limit: 2) == 1 {
-                    clues -= saved.count { $0 != 0 }
-                } else {
-                    for (k, t) in targets.enumerated() { puzzle.cells[t] = saved[k] }
-                }
-            }
-
-            if deepDig {
-                // Single-cell pass, breaking symmetry to shed more clues. One
-                // pass suffices: a removal that breaks uniqueness now can only
-                // break it after further removals too.
-                var clueCells = (0..<81).filter { puzzle.cells[$0] != 0 }
-                clueCells.shuffle(using: &rng)
-                for i in clueCells {
-                    if clues <= clueFloor { break }
-                    let saved = puzzle.cells[i]
-                    puzzle.cells[i] = 0
-                    if Solver.countSolutions(puzzle, limit: 2) == 1 {
-                        clues -= 1
-                    } else {
-                        puzzle.cells[i] = saved
-                    }
-                }
-            }
+            let puzzle = dig(from: solution, clueFloor: clueFloor, deepDig: deepDig, using: &rng)
+            let clues = puzzle.clueCount
 
             let rating = Rater.rate(puzzle)
             if deepDig {
@@ -139,6 +104,54 @@ public enum Generator {
         // Fallback: nearest qualifying puzzle, labelled with the requested level.
         let fallback = best!
         return Puzzle(givens: fallback.givens, solution: fallback.solution, difficulty: difficulty)
+    }
+
+    /// Dig holes out of a complete solution while preserving uniqueness:
+    /// 180°-rotationally-symmetric pairs in random order until the clue
+    /// count reaches `clueFloor` (or nothing more can go), then — for deep
+    /// digs — a single-cell pass that breaks symmetry to shed more clues.
+    /// One deep pass suffices: a removal that breaks uniqueness now can only
+    /// break it after further removals too.
+    ///
+    /// Public so the training miner can harvest solve positions from cheap
+    /// unrated digs instead of paying for full band-qualifying generation.
+    public static func dig(
+        from solution: Grid, clueFloor: Int, deepDig: Bool, using rng: inout some RandomNumberGenerator
+    ) -> Grid {
+        var puzzle = solution
+        var clues = 81
+
+        var pairs = Array(0...40)
+        pairs.shuffle(using: &rng)
+        for i in pairs {
+            if clues <= clueFloor { break }
+            let j = 80 - i
+            let targets = i == j ? [i] : [i, j]
+            let saved = targets.map { puzzle.cells[$0] }
+            guard saved.contains(where: { $0 != 0 }) else { continue }
+            for t in targets { puzzle.cells[t] = 0 }
+            if Solver.countSolutions(puzzle, limit: 2) == 1 {
+                clues -= saved.count { $0 != 0 }
+            } else {
+                for (k, t) in targets.enumerated() { puzzle.cells[t] = saved[k] }
+            }
+        }
+
+        if deepDig {
+            var clueCells = (0..<81).filter { puzzle.cells[$0] != 0 }
+            clueCells.shuffle(using: &rng)
+            for i in clueCells {
+                if clues <= clueFloor { break }
+                let saved = puzzle.cells[i]
+                puzzle.cells[i] = 0
+                if Solver.countSolutions(puzzle, limit: 2) == 1 {
+                    clues -= 1
+                } else {
+                    puzzle.cells[i] = saved
+                }
+            }
+        }
+        return puzzle
     }
 
     /// Fill an empty grid with a complete valid solution via randomized DFS.

@@ -241,4 +241,73 @@ final class SudokuUITests: XCTestCase {
         XCTAssertTrue(restored.waitForExistence(timeout: 10))
         XCTAssertTrue(restored.label.contains("contains 8"), "Placed digit must survive relaunch, got: \(restored.label)")
     }
+
+    // MARK: - Training
+
+    private func openTraining(_ app: XCUIApplication) {
+        app.buttons["training"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Full House"].waitForExistence(timeout: 10), "Training list should appear")
+    }
+
+    func testTrainingLessonWalkthrough() {
+        let app = launchApp()
+        openTraining(app)
+        // Open the Full House lesson (its lead technique's raw value is 0).
+        app.buttons["lesson_0"].tap()
+
+        // Learn phase: the guide topic and its steps.
+        XCTAssertTrue(app.staticTexts["How to use it"].waitForExistence(timeout: 5), "Learn phase should show the topic")
+        app.buttons["lesson_to_example"].tap()
+
+        // Worked example: step through all four reveal tiers.
+        let exampleNext = app.buttons["example_next"]
+        XCTAssertTrue(exampleNext.waitForExistence(timeout: 5), "Example phase should appear")
+        for _ in 0..<DrillReveals.exampleSteps { exampleNext.tap() }
+
+        // Practice: a drill with a prompt and the plain 1–9 pad.
+        XCTAssertTrue(app.staticTexts["Drill 1 of 3"].waitForExistence(timeout: 10), "Practice should start after the example")
+        XCTAssertTrue(app.buttons["drill_digit_1"].exists, "Drill pad should be present")
+    }
+
+    func testTrainingRevealAdvancesAndRecordsMastery() {
+        let app = launchApp()
+        openTraining(app)
+        app.buttons["lesson_0"].tap()
+        // Jump straight to practice via the phase picker.
+        XCTAssertTrue(app.buttons["lesson_to_example"].waitForExistence(timeout: 5))
+        app.buttons["Practice"].tap()
+
+        XCTAssertTrue(app.staticTexts["Drill 1 of 3"].waitForExistence(timeout: 10), "First drill should load")
+
+        // Reveal the answer on each of the three drills — no clean finds, so
+        // mastery stays at zero but the session completes.
+        for _ in 0..<3 {
+            let reveal = app.buttons["drill_reveal"]
+            XCTAssertTrue(reveal.waitForExistence(timeout: 10))
+            reveal.tap()
+            app.buttons["drill_next"].tap()
+        }
+
+        // Summary shows and mastery is unchanged (revealed drills don't count).
+        let mastery = app.staticTexts["summary_mastery"]
+        XCTAssertTrue(mastery.waitForExistence(timeout: 5), "Summary should appear after three drills")
+        XCTAssertTrue(mastery.label.contains("0 of"), "Revealed drills must not earn mastery, got: \(mastery.label)")
+    }
+
+    func testMixedPracticeWithholdsTechniqueName() {
+        let app = launchApp()
+        openTraining(app)
+        app.buttons["training_mixed"].tap()
+        // Mixed practice goes straight to a drill whose prompt never names a
+        // specific technique until a hint is asked for.
+        let prompt = app.staticTexts["drill_prompt"]
+        XCTAssertTrue(prompt.waitForExistence(timeout: 10), "Mixed practice should start a drill")
+        XCTAssertTrue(prompt.label.contains("next move"), "Mixed prompt should not name the technique, got: \(prompt.label)")
+    }
+}
+
+/// Mirror of `DrillSession.exampleSteps` for the UI test target, which can't
+/// import the app module.
+private enum DrillReveals {
+    static let exampleSteps = 4
 }
