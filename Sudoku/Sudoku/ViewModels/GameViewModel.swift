@@ -744,8 +744,11 @@ final class GameViewModel {
     }
 
     /// Fill every empty cell's pencil marks with its currently-legal candidates.
+    /// Notes only — no digits are placed; cells left with a single mark are
+    /// naked singles.
     func fillAllCandidates() {
         guard !isGameOver, !isPaused else { return }
+        clearGuidance()
         if !layers.isEmpty {
             guard let vi = viewedLayer else {
                 Haptics.warning()

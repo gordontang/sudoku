@@ -66,6 +66,17 @@ final class SudokuUITests: XCTestCase {
         XCTAssertTrue(cell.label.contains("empty"))
     }
 
+    func testAutoPencilFillsAllCandidates() {
+        let app = launchApp()
+        let cell = startEasyGame(app)
+        // r1c1's only legal candidates are 7 and 8.
+        app.buttons["autopencil"].tap()
+        XCTAssertTrue(cell.label.contains("notes 7, 8"), "Auto pencil should note all candidates, got: \(cell.label)")
+        XCTAssertFalse(cell.label.contains("contains"), "Auto pencil must not submit digits, got: \(cell.label)")
+        app.buttons["undo"].tap()
+        XCTAssertTrue(cell.label.contains("empty"), "One undo should clear the whole fill, got: \(cell.label)")
+    }
+
     func testChainLayers() {
         let app = launchApp()
         let cell = startEasyGame(app)

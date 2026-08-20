@@ -495,6 +495,17 @@ private struct GameToolbar: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("pencil")
 
+            // Complete pencil: note every valid candidate in every empty
+            // cell — no digits placed, but naked singles become visible.
+            toolbarButton(
+                "Auto Pencil",
+                systemImage: "pencil.and.outline",
+                disabled: !vm.canEditViewedState,
+                id: "autopencil"
+            ) {
+                vm.fillAllCandidates()
+            }
+
             // Coach: advice without answers — disabled inside alts, where
             // hints are too.
             toolbarButton("Coach", systemImage: "graduationcap", disabled: !vm.layers.isEmpty) {
@@ -516,6 +527,7 @@ private struct GameToolbar: View {
         _ title: String,
         systemImage: String,
         disabled: Bool = false,
+        id: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -524,12 +536,14 @@ private struct GameToolbar: View {
                     .font(.title3)
                 Text(title)
                     .font(.caption2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.35 : 1)
-        .accessibilityIdentifier(title.lowercased())
+        .accessibilityIdentifier(id ?? title.lowercased())
     }
 }
