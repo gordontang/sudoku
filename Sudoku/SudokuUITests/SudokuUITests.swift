@@ -13,7 +13,19 @@ final class SudokuUITests: XCTestCase {
         if reset { args.append("-uitest-reset") }
         app.launchArguments = args
         app.launch()
+        // The app opens behind a loading screen; wait for Home before tapping.
+        XCTAssertTrue(app.buttons["Easy"].firstMatch.waitForExistence(timeout: 10), "Home should appear after the loading screen")
         return app
+    }
+
+    func testLoadingScreenHandsOffToHome() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uitest-fixed-puzzle", "-uitest-reset"]
+        app.launch()
+        // Home replaces the loading screen once the store is open.
+        XCTAssertTrue(app.buttons["Easy"].firstMatch.waitForExistence(timeout: 10), "Home should appear")
+        XCTAssertFalse(app.otherElements["loading_screen"].exists, "Loading screen should be gone once Home is up")
+        XCTAssertTrue(app.navigationBars["Sudoku"].exists)
     }
 
     @discardableResult
