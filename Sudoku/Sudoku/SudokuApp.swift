@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 @main
@@ -9,8 +8,9 @@ struct SudokuApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            // RootView opens the model container behind a loading screen and
+            // injects it once ready; nothing above it touches SwiftData.
+            RootView()
         }
-        .modelContainer(for: [SavedGame.self, CompletedGame.self])
     }
 }
