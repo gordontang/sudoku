@@ -188,8 +188,12 @@ final class GameViewModel {
                 seconds: record.elapsedSeconds,
                 mistakes: record.mistakeCount,
                 hints: record.hintsUsed,
+                score: record.score,
                 completed: false,
-                finishedAt: Date()
+                finishedAt: Date(),
+                moveLogData: record.moveLogData,
+                givensData: record.givensData,
+                solutionData: record.solutionData
             ))
             modelContext.delete(record)
         }
@@ -1009,7 +1013,9 @@ final class GameViewModel {
             score: score,
             completed: completed,
             finishedAt: Date(),
-            moveLogData: MoveLogCoding.encode(moveLog)
+            moveLogData: MoveLogCoding.encode(moveLog),
+            givensData: givens.data,
+            solutionData: solution.data
         ))
         if let saved {
             modelContext.delete(saved)

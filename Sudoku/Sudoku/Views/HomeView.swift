@@ -6,6 +6,7 @@ enum Route: Hashable {
     case newGame(Difficulty)
     case resume
     case stats
+    case pastGames
     case settings
     case guide
     case training
@@ -58,6 +59,13 @@ struct HomeView: View {
                     }
                     .accessibilityIdentifier("training")
                 }
+
+                Section {
+                    NavigationLink(value: Route.pastGames) {
+                        Label("Past Games", systemImage: "clock.arrow.circlepath")
+                    }
+                    .accessibilityIdentifier("past_games")
+                }
             }
             .navigationTitle("Sudoku")
             .toolbar {
@@ -91,6 +99,8 @@ struct HomeView: View {
                     GameView(mode: .resume)
                 case .stats:
                     StatsView()
+                case .pastGames:
+                    PastGamesView()
                 case .settings:
                     SettingsView()
                 case .guide:

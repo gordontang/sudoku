@@ -63,10 +63,15 @@ final class CompletedGame {
     var finishedAt: Date
     /// Encoded action log (see `MoveLogCoding`), for post-game review.
     var moveLogData: Data = Data()
+    /// The puzzle itself, so past games can be reviewed again later.
+    /// Empty on rows recorded before these fields existed.
+    var givensData: Data = Data()
+    var solutionData: Data = Data()
 
     init(
         difficultyRaw: Int, seconds: Double, mistakes: Int, hints: Int,
-        score: Int = 0, completed: Bool, finishedAt: Date, moveLogData: Data = Data()
+        score: Int = 0, completed: Bool, finishedAt: Date, moveLogData: Data = Data(),
+        givensData: Data = Data(), solutionData: Data = Data()
     ) {
         self.difficultyRaw = difficultyRaw
         self.seconds = seconds
@@ -76,10 +81,23 @@ final class CompletedGame {
         self.completed = completed
         self.finishedAt = finishedAt
         self.moveLogData = moveLogData
+        self.givensData = givensData
+        self.solutionData = solutionData
     }
 
     var difficulty: Difficulty {
         Difficulty(rawValue: difficultyRaw) ?? .easy
+    }
+
+    /// Everything the post-game review needs, decoded — nil for games
+    /// recorded before the puzzle was stored alongside the result.
+    var reviewInput: (givens: Grid, solution: Grid, log: [LoggedAction])? {
+        guard
+            let givens = Grid(data: givensData),
+            let solution = Grid(data: solutionData),
+            !moveLogData.isEmpty
+        else { return nil }
+        return (givens, solution, MoveLogCoding.decode(moveLogData))
     }
 }
 
