@@ -44,7 +44,9 @@ no accounts.
 - **Game review**: after a win, a move-by-move analysis finds where you
   stalled and what was available at that moment, and classifies each wrong
   entry as a misread vs. a guess — every moment replayable on a board
-  snapshot with the engine's finding highlighted.
+  snapshot with the engine's finding highlighted. **Past games** (from Home
+  or Statistics) lists every recorded game so a review skipped at the time —
+  or a loss — can be opened later.
 - **Technique guide**: an in-app reference covering the full ladder, from
   Full House to Alternating Inference Chains, in plain language, with an
   example board on every page and Previous/Next to walk the ladder. The

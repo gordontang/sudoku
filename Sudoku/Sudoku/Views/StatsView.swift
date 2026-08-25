@@ -10,6 +10,14 @@ struct StatsView: View {
     var body: some View {
         List {
             overallSection
+            if !games.isEmpty {
+                Section {
+                    NavigationLink(value: Route.pastGames) {
+                        Label("Past Games", systemImage: "clock.arrow.circlepath")
+                    }
+                    .accessibilityIdentifier("stats_past_games")
+                }
+            }
             ForEach(Difficulty.allCases) { difficulty in
                 let subset = games.filter { $0.difficultyRaw == difficulty.rawValue }
                 if !subset.isEmpty {
