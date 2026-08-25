@@ -17,6 +17,7 @@ struct ReviewView: View {
             if let review {
                 List {
                     summarySection(review)
+                    techniquesSection(review)
                     if review.moments.isEmpty {
                         Section {
                             Label("No long stalls, no wrong entries — a clean, steady solve.", systemImage: "checkmark.seal")
@@ -61,12 +62,22 @@ struct ReviewView: View {
             if review.adviceRequests > 0 {
                 row("Coach requests", "\(review.adviceRequests)")
             }
-            if !review.requiredTechniques.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("This puzzle needed")
-                        .foregroundStyle(.secondary)
-                    Text(review.requiredTechniques.map(\.displayName).joined(separator: " · "))
-                        .font(.footnote.weight(.medium))
+        }
+    }
+
+    /// Each required technique, tappable to see the position on this
+    /// puzzle's solve path where it actually fired.
+    @ViewBuilder
+    private func techniquesSection(_ review: GameReview) -> some View {
+        if !review.techniqueExamples.isEmpty {
+            Section("This puzzle needed") {
+                ForEach(review.techniqueExamples) { example in
+                    NavigationLink {
+                        TechniqueExampleDetail(example: example, givens: givens)
+                    } label: {
+                        Text(example.technique.displayName)
+                            .font(.subheadline.weight(.medium))
+                    }
                 }
             }
         }
@@ -111,6 +122,39 @@ private struct ReviewMomentDetail: View {
             .padding(16)
         }
         .navigationTitle(moment.title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Where a technique actually appeared on this puzzle: the solve-path
+/// position it first fired from, with the pattern highlighted and the
+/// engine's reasoning below. Digits beyond the givens are the solve
+/// path's own progress, drawn as entries.
+private struct TechniqueExampleDetail: View {
+    let example: GameReview.TechniqueExample
+    let givens: SudokuKit.Grid
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                SnapshotBoardView(
+                    values: example.board,
+                    givens: givens,
+                    marks: example.marks,
+                    annotations: example.annotations
+                )
+                .frame(maxWidth: 360)
+                .frame(maxWidth: .infinity)
+                Text("The first point in this puzzle's solve where \(example.technique.displayName) was the simplest available move:")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text(example.detail)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+        }
+        .navigationTitle(example.technique.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

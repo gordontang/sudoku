@@ -27,6 +27,24 @@ struct ReviewMoment: Identifiable {
 /// Post-game analysis: replay the move log, find the stalls and mistakes,
 /// and for each one ask the engine what was actually available.
 struct GameReview {
+    /// One concrete appearance of a required technique: the first position
+    /// on the puzzle's logical solve path where it fired, with the engine's
+    /// highlights — so "this puzzle needed a Skyscraper" can be shown, not
+    /// just named. (Nested: SudokuKit's `TechniqueExample` is the guide's
+    /// curated examples, a different thing.)
+    struct TechniqueExample: Identifiable {
+        let technique: Technique
+        /// The board as it stood on the solve path.
+        let board: Grid
+        /// Candidates at that point, prior eliminations applied — advanced
+        /// patterns only exist against these, not the raw candidates.
+        let marks: [CandidateSet]
+        let annotations: BoardAnnotations
+        let detail: String
+
+        var id: Int { technique.rawValue }
+    }
+
     let moments: [ReviewMoment]
     let totalTime: Double
     /// Seconds spent in detected stalls.
@@ -34,8 +52,9 @@ struct GameReview {
     let mistakes: Int
     let hints: Int
     let adviceRequests: Int
-    /// Techniques the puzzle's logical solve path requires, in ladder order.
-    let requiredTechniques: [Technique]
+    /// Techniques the puzzle's logical solve path requires, in ladder
+    /// order, each with the position where it first fired.
+    let techniqueExamples: [TechniqueExample]
 
     /// Thinking gaps longer than this count as stalls.
     static func stallThreshold(for difficulty: Difficulty) -> Double {
@@ -109,7 +128,6 @@ struct GameReview {
         let kept = moments.filter { $0.kind == .mistake || stallIDs.contains($0.id) }
             .sorted { $0.time < $1.time }
 
-        let solvePath = Solver.solveLogically(givens)
         return GameReview(
             moments: kept,
             totalTime: log.last?.time ?? 0,
@@ -117,8 +135,32 @@ struct GameReview {
             mistakes: kept.count { $0.kind == .mistake },
             hints: hints,
             adviceRequests: advice,
-            requiredTechniques: solvePath.techniques.sorted()
+            techniqueExamples: techniqueExamples(givens: givens)
         )
+    }
+
+    /// Walk the puzzle's logical solve path (same walk as
+    /// `Solver.solveLogically`), keeping the first position where each
+    /// technique fires.
+    private static func techniqueExamples(givens: Grid) -> [TechniqueExample] {
+        var grid = givens
+        var cands = grid.candidates()
+        var examples: [Technique: TechniqueExample] = [:]
+        solve: while !grid.isFull {
+            guard let d = Techniques.findDeduction(grid: grid, candidates: cands, givens: givens) else { break }
+            if examples[d.technique] == nil {
+                examples[d.technique] = TechniqueExample(
+                    technique: d.technique,
+                    board: grid,
+                    marks: cands,
+                    annotations: BoardAnnotations(deduction: d, reveal: .full),
+                    detail: d.explanation
+                )
+            }
+            Solver.apply(d, to: &grid, candidates: &cands)
+            for i in 0..<81 where grid.cells[i] == 0 && cands[i].isEmpty { break solve }
+        }
+        return examples.values.sorted { $0.technique < $1.technique }
     }
 
     private static func describeStall(
