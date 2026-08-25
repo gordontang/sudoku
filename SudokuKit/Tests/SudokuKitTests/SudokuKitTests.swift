@@ -98,6 +98,29 @@ private let ladderStaller =
         }
     }
 
+    @Test func expertAndMasterDemandSustainedDifficulty() {
+        // One skyscraper followed by fifty singles plays like hard, not
+        // expert. Generated puzzles must clear the sustained bar: a high
+        // enough peak technique plus several advanced steps (or a full
+        // ladder stall, where search is required).
+        for difficulty in [Difficulty.expert, .master] {
+            var rng = SeededRNG(seed: 11)
+            for _ in 0..<3 {
+                let puzzle = Generator.generate(difficulty: difficulty, using: &rng)
+                let result = Solver.solveLogically(puzzle.givens)
+                if result.solved == nil { continue }
+                let hardest = result.techniques.max() ?? .nakedSingle
+                if difficulty == .master {
+                    #expect(hardest.band == .master)
+                    #expect(result.steps.count { $0.band == .master } >= 2)
+                } else {
+                    #expect(hardest >= .xWing)
+                    #expect(result.steps.count { $0.band >= .expert } >= 3)
+                }
+            }
+        }
+    }
+
     @Test func generationSpeed() {
         // The bound is a canary against runaway generation, sized for CI's
         // unoptimized debug builds — release builds on device are far

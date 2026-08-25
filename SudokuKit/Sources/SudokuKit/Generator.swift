@@ -42,9 +42,11 @@ public enum Generator {
     /// request can never hang.
     ///
     /// Expert and master additionally dig asymmetrically past the symmetric
-    /// local minimum and are accepted on clue count as well as rating —
-    /// symmetric digging alone bottoms out near 25–30 clues, which is why
-    /// those levels used to feel like hard.
+    /// local minimum and are accepted on clue count plus a sustained
+    /// technique bar (several advanced steps, not just one) — symmetric
+    /// digging alone bottoms out near 25–30 clues, and band-only rating lets
+    /// one-hard-moment puzzles through, both of which made those levels feel
+    /// like hard.
     public static func generate(difficulty: Difficulty, using rng: inout some RandomNumberGenerator) -> Puzzle {
         // Dig until the clue count reaches this floor (or no cell can be
         // removed without breaking uniqueness).
@@ -57,15 +59,18 @@ public enum Generator {
         case .master: clueFloor = 20
         }
         let deepDig = difficulty >= .expert
-        // Acceptance for deep-dug levels: few enough clues, and hard enough
-        // that the technique solver needs at least this band. Master allows
-        // one clue more than it used to: with the full ladder, master means
-        // "requires a master-band technique", and demanding ≤23 clues on top
-        // of that made qualifying puzzles rare enough to stall generation.
+        // Acceptance for deep-dug levels: few enough clues, and *sustained*
+        // difficulty. Rating by the hardest technique's band alone lets a
+        // puzzle through on one qualifying step — a single skyscraper that
+        // then collapses to singles plays like hard, not expert. So the bar
+        // is a peak technique plus a minimum count of advanced steps along
+        // the ladder's solve path. A ladder stall (search required) always
+        // qualifies. Master allows one clue more than it used to: demanding
+        // ≤23 clues on top of the technique bar made qualifying puzzles rare
+        // enough to stall generation.
         let maxClues = difficulty == .master ? 24 : 25
-        let minRating: Difficulty = difficulty == .master ? .master : .expert
 
-        // score = (rating misses acceptance ? 1 : 0, clues over the cap) —
+        // score = (steps short of the technique bar, clues over the cap) —
         // lexicographically smaller is closer to qualifying.
         var best: (givens: Grid, solution: Grid, score: (Int, Int))?
         let maxAttempts = 60
@@ -78,16 +83,33 @@ public enum Generator {
             let puzzle = dig(from: solution, clueFloor: clueFloor, deepDig: deepDig, using: &rng)
             let clues = puzzle.clueCount
 
-            let rating = Rater.rate(puzzle)
             if deepDig {
-                if clues <= maxClues && rating >= minRating {
+                let result = Solver.solveLogically(puzzle)
+                let hardest = result.techniques.max() ?? .nakedSingle
+                let stalled = result.solved == nil
+                let shortfall: Int
+                if stalled {
+                    shortfall = 0
+                } else if difficulty == .master {
+                    // Peaks in the master band, with at least two master steps.
+                    let masterSteps = result.steps.count { $0.band == .master }
+                    shortfall = max(0, 2 - masterSteps) + (hardest.band == .master ? 0 : 1)
+                } else {
+                    // Peaks at X-Wing or above — triples and quads can't
+                    // carry an expert puzzle — with at least three steps
+                    // beyond the hard band.
+                    let advancedSteps = result.steps.count { $0.band >= .expert }
+                    shortfall = max(0, 3 - advancedSteps) + (hardest >= .xWing ? 0 : 1)
+                }
+                if clues <= maxClues && shortfall == 0 {
                     return Puzzle(givens: puzzle, solution: solution, difficulty: difficulty)
                 }
-                let score = (rating >= minRating ? 0 : 1, max(0, clues - maxClues))
+                let score = (shortfall, max(0, clues - maxClues))
                 if best == nil || score < best!.score {
                     best = (puzzle, solution, score)
                 }
             } else {
+                let rating = Rater.rate(puzzle)
                 if rating == difficulty {
                     return Puzzle(givens: puzzle, solution: solution, difficulty: difficulty)
                 }
