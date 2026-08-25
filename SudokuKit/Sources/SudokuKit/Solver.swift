@@ -3,6 +3,10 @@ public struct LogicalResult: Sendable {
     public let solved: Grid?
     /// Techniques that were required.
     public let techniques: Set<Technique>
+    /// Every applied deduction's technique, in solve order. Unlike
+    /// `techniques`, repeats are kept — the count of hard steps is what
+    /// separates a puzzle that *is* hard from one with a single hard moment.
+    public let steps: [Technique]
 }
 
 public enum Solver {
@@ -15,19 +19,21 @@ public enum Solver {
         var grid = start
         var cands = grid.candidates()
         var used = Set<Technique>()
+        var steps: [Technique] = []
         while !grid.isFull {
             guard let deduction = Techniques.findDeduction(grid: grid, candidates: cands, givens: start) else {
-                return LogicalResult(solved: nil, techniques: used)
+                return LogicalResult(solved: nil, techniques: used, steps: steps)
             }
             used.insert(deduction.technique)
+            steps.append(deduction.technique)
             apply(deduction, to: &grid, candidates: &cands)
             // A contradiction (empty cell with no candidates) means the puzzle
             // is unsolvable from this state.
             for i in 0..<81 where grid.cells[i] == 0 && cands[i].isEmpty {
-                return LogicalResult(solved: nil, techniques: used)
+                return LogicalResult(solved: nil, techniques: used, steps: steps)
             }
         }
-        return LogicalResult(solved: grid, techniques: used)
+        return LogicalResult(solved: grid, techniques: used, steps: steps)
     }
 
     /// Solve using naked and hidden singles only — the deductions a player
